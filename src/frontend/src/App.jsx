@@ -1,36 +1,21 @@
-import { useEffect, useState } from 'react'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
+import Clients from './pages/Clients'
+import ClientProfile from './pages/ClientProfile'
+import Simulation from './pages/Simulation'
 
-function App() {
-  const [health, setHealth] = useState(null)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
-      })
-      .then(setHealth)
-      .catch((err) => setError(err.message))
-  }, [])
-
+export default function App() {
   return (
-    <main className="app">
-      <h1>Hackaton - Grupo 10</h1>
-      <p>React + .NET</p>
-      <section className="status">
-        <h2>Status da API</h2>
-        {error && <p className="error">Erro ao conectar: {error}</p>}
-        {!error && !health && <p>Carregando...</p>}
-        {health && (
-          <p className="ok">
-            {health.status} - {new Date(health.timestamp).toLocaleString()}
-          </p>
-        )}
-      </section>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/clientes" element={<Clients />} />
+        <Route path="/clientes/:id" element={<ClientProfile />} />
+        <Route path="/simulacao" element={<Simulation />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
-
-export default App
