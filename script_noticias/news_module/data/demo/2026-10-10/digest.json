@@ -1,0 +1,47 @@
+{
+  "data_referencia": "2026-10-10",
+  "resumo_executivo": "Em 2 de outubro de 2026, Porto Seguro S.A. anunciou a solicitação de cancelamento de registro da sua controlada Porto Serviço S.A. como parte de uma reorganização societária; Unifique Telecomunicações S.A. divulgou a intenção de sua controladora Unitá Participações S.A. de lançar uma oferta pública de aquisição unificada, convertendo a categoria de registro e saindo do Novo Mercado; Nova Transportadora do Sudeste S.A. – NTS comunicou a decisão da ANP de aplicar o Método do Capital Recuperado na avaliação de ativos do contrato Malhas SE, impactando cerca de 11% da receita da companhia.",
+  "itens": [
+    {
+      "tipo": "evento_corporativo",
+      "titulo": "Pedido de Cancelamento de registro de Companhia Aberta - Porto Serviço",
+      "resumo": "Porto Seguro S.A. informou que sua controlada Porto Serviço S.A. protocolou pedido de cancelamento de registro de companhia aberta como parte de uma reorganização societária visando maior sinergia e escala. O cancelamento está sujeito à aprovação da CVM.",
+      "relevancia": "alta",
+      "classe_ativo": "renda_variavel",
+      "entidades_citadas": [
+        "PORTO SEGURO S.A.",
+        "Porto Serviço S.A.",
+        "CVM"
+      ],
+      "fonte_url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1573987&numSequencia=1098693&numVersao=1"
+    },
+    {
+      "tipo": "evento_corporativo",
+      "titulo": "Oferta Pública de Aquisição",
+      "resumo": "Unifique Telecomunicações S.A. recebeu carta da controladora Unitá Participações S.A. informando a intenção de lançar oferta pública unificada de aquisição de ações ordinárias, convertendo a categoria de registro de A para B e saindo do Novo Mercado. O preço proposto é R$6,00 por ação, acima do valor justo de R$5,42.",
+      "relevancia": "alta",
+      "classe_ativo": "renda_variavel",
+      "entidades_citadas": [
+        "UNIFIQUE TELECOMUNICAÇÕES S.A.",
+        "Unitá Participações S.A.",
+        "CVM",
+        "B3"
+      ],
+      "fonte_url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1574047&numSequencia=1098753&numVersao=1"
+    },
+    {
+      "tipo": "evento_corporativo",
+      "titulo": "Decisão ANP BRA",
+      "resumo": "Nova Transportadora do Sudeste S.A. – NTS relatou que a ANP aplicou o Método do Capital Recuperado na avaliação de ativos vinculados ao contrato Malhas SE, representando cerca de 11% da receita líquida do primeiro semestre de 2026 (aprox. R$390 milhões). A companhia pretende adotar medidas para proteger seus direitos.",
+      "relevancia": "alta",
+      "classe_ativo": "macro",
+      "entidades_citadas": [
+        "NOVA TRANSPORTADORA DO SUDESTE S.A. - NTS",
+        "ANP",
+        "CVM"
+      ],
+      "fonte_url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1574050&numSequencia=1098756&numVersao=1"
+    }
+  ],
+  "avisos": []
+}

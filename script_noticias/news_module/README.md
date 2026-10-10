@@ -32,7 +32,7 @@ Copy-Item .env.example .env
 ```
 
 Preencha `LLM_API_KEY` no `.env` com a chave da Groq. O arquivo `.env` nao deve ser versionado. O MVP usa a
-Groq e o modelo `llama-3.1-8b-instant` por padrao.
+Groq e o modelo `openai/gpt-oss-20b` por padrao.
 
 ## Execucao manual
 
@@ -43,6 +43,20 @@ python -m app.run_daily --dry-run
 python -m app.run_daily --skip-llm
 python -m app.run_daily
 ```
+
+Se o ambiente virtual nao estiver ativado, execute diretamente com o Python correto:
+
+```bash
+../.venv/bin/python -m app.run_daily --dry-run
+```
+
+Para confirmar o interpretador ativo:
+
+```bash
+which python3
+```
+
+O caminho deve conter `script_noticias/.venv/bin`.
 
 `--dry-run` e `--skip-llm` coletam os dados e gravam o payload sem chamar o LLM nem alterar o state store.
 Para reproduzir uma janela específica, use `--now` com um ISO 8601 timezone-aware:

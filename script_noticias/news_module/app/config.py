@@ -15,7 +15,7 @@ DEFAULT_CVM_CATEGORIAS = [
     "Aviso aos Acionistas",
 ]
 
-DEFAULT_LLM_MODEL = "llama-3.1-8b-instant"
+DEFAULT_LLM_MODEL = "openai/gpt-oss-20b"
 
 _ENV_LOADED = False
 
