@@ -1,3 +1,4 @@
+
 export const assessor = { nome: "Rafael Mendes" }
 
 export const clientes = [
@@ -342,8 +343,8 @@ export const alertas = [
 ]
 
 export const lembretes = [
-  { id: 1, texto: "Ligar para Helena sobre o reinvestimento do CDB", clienteNome: "Helena Duarte", quando: "Hoje", concluido: false },
-  { id: 2, texto: "Enviar material de debêntures incentivadas", clienteNome: null, quando: "Esta semana", concluido: false },
+  { id: 1, texto: "Ligar para Helena sobre o reinvestimento do CDB", clienteNome: "Helena Duarte", quando: "2026-10-10", concluido: false },
+  { id: 2, texto: "Enviar material de debêntures incentivadas", clienteNome: null, quando: "2026-10-14", concluido: false },
 ]
 
 export const noticias = [

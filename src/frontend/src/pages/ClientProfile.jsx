@@ -1,5 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useGoogleLogin } from '@react-oauth/google'
+import { extrairDadosTranscricao } from '../utils/extractFromTranscription'
+import { criarEventoAnualCalendario } from '../utils/googleCalendar'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Cell,
 } from 'recharts'
@@ -36,6 +39,16 @@ export default function ClientProfile() {
   const [nota, setNota] = useState('')
   const [notaResultado, setNotaResultado] = useState(null)
   const [insights, setInsights] = useState(null)
+  const [bensExtraidos, setBensExtraidos] = useState([])
+  const [datasExtraidas, setDatasExtraidas] = useState([])
+  const [datasCliente, setDatasCliente] = useState([])
+  const [extraindoTranscricao, setExtraindoTranscricao] = useState(false)
+  const [erroTranscricao, setErroTranscricao] = useState(null)
+  const [arquivoNome, setArquivoNome] = useState(null)
+  const transcricaoRef = useRef(null)
+  const pendingDataRef = useRef(null)
+  const [googleToken, setGoogleToken] = useState(null)
+  const [calendarStatus, setCalendarStatus] = useState(null)
   const [timeline, setTimeline] = useState(cliente.timeline)
 
   const adicionarBem = () => {
@@ -59,11 +72,85 @@ export default function ClientProfile() {
     setNota('')
   }
 
-  const processarTranscricao = () => {
-    setInsights([
-      { trecho: '"Quero ver minhas opções para o vencimento de dezembro"', item: 'Ativo próximo de vencimento — possível reinvestimento', tipo: 'risco' },
-      { trecho: '"Comprei um carro novo no mês passado"', item: 'Veículo novo (valor a confirmar)', tipo: 'patrimônio' },
-    ])
+  const handleTranscricaoFile = async (e) => {
+    const arquivo = e.target.files?.[0]
+    if (!arquivo) return
+    e.target.value = ''
+    setExtraindoTranscricao(true)
+    setErroTranscricao(null)
+    setInsights(null)
+    setBensExtraidos([])
+    setArquivoNome(arquivo.name)
+    try {
+      const texto = await arquivo.text()
+      if (!texto.trim()) throw new Error('O arquivo está vazio.')
+      const dados = await extrairDadosTranscricao(texto)
+      setInsights(dados.insights?.length ? dados.insights : null)
+      setBensExtraidos((dados.bens || []).map((b, i) => ({ ...b, _id: Date.now() + i })))
+      setDatasExtraidas((dados.datas || []).map((d, i) => ({ ...d, _id: Date.now() + 1000 + i })))
+      setTimeline([
+        { data: new Date().toLocaleDateString('pt-BR'), tipo: 'Transcrição', texto: `Transcrição importada: ${arquivo.name}` },
+        ...timeline,
+      ])
+    } catch (err) {
+      setErroTranscricao(err.message || 'Erro ao processar a transcrição.')
+      setArquivoNome(null)
+    } finally {
+      setExtraindoTranscricao(false)
+    }
+  }
+
+  const confirmarBem = (bem) => {
+    setBens([...bens, { id: Date.now(), tipo: bem.tipo, descricao: bem.descricao, valorEstimado: bem.valorEstimado || 0, avaliadoEm: '', situacao: 'Quitado' }])
+    setBensExtraidos(bensExtraidos.filter((b) => b._id !== bem._id))
+  }
+
+  const ignorarBem = (id) => setBensExtraidos(bensExtraidos.filter((b) => b._id !== id))
+
+  const confirmarData = (d) => {
+    setDatasCliente([...datasCliente, d])
+    setDatasExtraidas(datasExtraidas.filter((x) => x._id !== d._id))
+  }
+  const ignorarData = (id) => setDatasExtraidas(datasExtraidas.filter((d) => d._id !== id))
+
+  const enviarDataCalendario = async (token, data) => {
+    setCalendarStatus('loading')
+    try {
+      await criarEventoAnualCalendario(token, {
+        titulo: `${data.tipo} — ${data.descricao}`,
+        diaMes: data.data,
+        clienteNome: cliente.nome,
+      })
+      setCalendarStatus('success')
+    } catch {
+      setCalendarStatus('error')
+    } finally {
+      setTimeout(() => setCalendarStatus(null), 4000)
+    }
+  }
+
+  const googleLogin = useGoogleLogin({
+    scope: 'https://www.googleapis.com/auth/calendar.events',
+    onSuccess: async ({ access_token }) => {
+      setGoogleToken(access_token)
+      if (pendingDataRef.current) {
+        await enviarDataCalendario(access_token, pendingDataRef.current)
+        pendingDataRef.current = null
+      }
+    },
+    onError: () => {
+      setCalendarStatus('error')
+      setTimeout(() => setCalendarStatus(null), 4000)
+    },
+  })
+
+  const adicionarDataCalendario = async (data) => {
+    if (googleToken) {
+      await enviarDataCalendario(googleToken, data)
+    } else {
+      pendingDataRef.current = data
+      googleLogin()
+    }
   }
 
   // Concentração por emissor (FGC)
@@ -89,6 +176,19 @@ export default function ClientProfile() {
     <div className="min-h-screen bg-stone-100">
       <Navbar />
 
+      {/* Toast Google Calendar */}
+      {calendarStatus && (
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium transition-all ${
+          calendarStatus === 'loading' ? 'bg-zinc-800 text-white' :
+          calendarStatus === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`}>
+          {calendarStatus === 'loading' && <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>}
+          {calendarStatus === 'loading' && 'Adicionando ao Google Agenda...'}
+          {calendarStatus === 'success' && '✓ Lembrete anual criado no Google Agenda!'}
+          {calendarStatus === 'error' && '✕ Erro ao criar lembrete no Google Agenda'}
+        </div>
+      )}
+
       <div className="max-w-5xl mx-auto px-6 py-6">
         <button onClick={() => navigate('/clientes')} className="text-sm text-zinc-500 hover:text-zinc-700 mb-4 flex items-center gap-1">
           ← Voltar para clientes
@@ -113,6 +213,15 @@ export default function ClientProfile() {
                 <p className="text-sm text-zinc-500 mt-1">
                   Familiares: {cliente.familiares.map((f) => `${f.nome} (${f.parentesco})`).join(' e ')}
                 </p>
+              )}
+              {datasCliente.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {datasCliente.map((d, i) => (
+                    <span key={i} className="flex items-center gap-1 text-xs bg-pink-50 text-pink-700 border border-pink-200 px-2 py-0.5 rounded-full">
+                      {d.tipo} — {d.descricao} ({d.data})
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -468,34 +577,91 @@ export default function ClientProfile() {
           <p className="text-xs text-zinc-400 mb-3">
             Envie a transcrição de uma ligação, reunião ou conversa. A IA lê o texto, sugere insights e bens do patrimônio físico; você confirma item a item.
           </p>
+          <input ref={transcricaoRef} type="file" accept=".txt,.md" className="hidden" onChange={handleTranscricaoFile} />
           <div className="border-2 border-dashed border-zinc-200 rounded-xl p-4 mb-3 text-center">
-            <p className="text-sm text-zinc-500 mb-2">Arquivo de transcrição (.txt, .md, .vtt, .srt, .docx ou .pdf)</p>
-            <div className="flex items-center justify-center gap-3">
-              <label className="cursor-pointer">
-                <span className="border border-zinc-300 bg-zinc-50 text-zinc-700 text-xs px-3 py-1.5 rounded hover:bg-zinc-100">Escolher arquivo</span>
-                <input type="file" className="hidden" />
-              </label>
-              <span className="text-xs text-zinc-400">Nenhum arquivo escolhido</span>
+            {extraindoTranscricao ? (
+              <div className="flex items-center justify-center gap-2 py-1">
+                <svg className="animate-spin h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                <span className="text-sm text-zinc-500">Analisando com IA…</span>
+              </div>
+            ) : arquivoNome ? (
+              <p className="text-sm text-green-600 font-medium">✓ {arquivoNome}</p>
+            ) : (
+              <>
+                <p className="text-sm text-zinc-500 mb-2">Arquivo de transcrição (.txt ou .md)</p>
+                <button onClick={() => transcricaoRef.current?.click()} className="border border-zinc-300 bg-zinc-50 text-zinc-700 text-xs px-3 py-1.5 rounded hover:bg-zinc-100">
+                  Escolher arquivo
+                </button>
+              </>
+            )}
+          </div>
+          {erroTranscricao && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+              <p className="text-xs text-red-600">{erroTranscricao}</p>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={processarTranscricao} className="bg-brand hover:brightness-95 text-zinc-900 font-medium text-sm px-4 py-1.5 rounded-lg">
-              Usar transcrição de exemplo
-            </button>
-            <p className="text-xs text-zinc-400">Nome e CPF são mascarados antes do envio à IA.</p>
-          </div>
+          )}
           {insights && (
-            <div className="mt-4 flex flex-col gap-2">
-              {insights.map((ins, i) => (
-                <div key={i} className="bg-zinc-50 border border-zinc-100 rounded-lg p-3">
-                  <p className="text-xs italic text-zinc-400 mb-1">{ins.trecho}</p>
-                  <p className="text-sm text-zinc-700 font-medium">{ins.item}</p>
-                  <div className="flex gap-2 mt-2">
-                    <button className="bg-brand text-zinc-900 text-xs font-medium px-3 py-1 rounded-lg">Adicionar ao patrimônio</button>
-                    <button className="border border-zinc-200 text-zinc-500 text-xs px-3 py-1 rounded-lg hover:bg-zinc-50">Ignorar</button>
+            <div className="mb-3">
+              <p className="text-xs font-medium text-zinc-500 mb-2">Insights estratégicos</p>
+              <div className="flex flex-col gap-1">
+                {insights.map((ins, i) => (
+                  <div key={i} className="bg-zinc-50 border border-zinc-100 rounded-lg px-3 py-2">
+                    <p className="text-sm text-zinc-700">{ins}</p>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            </div>
+          )}
+          {bensExtraidos.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-medium text-zinc-500 mb-2">Bens identificados — confirme para adicionar ao patrimônio</p>
+              <div className="flex flex-col gap-2">
+                {bensExtraidos.map((b) => (
+                  <div key={b._id} className="bg-zinc-50 border border-zinc-100 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${BEM_STYLE[b.tipo] || 'bg-zinc-100 text-zinc-600'}`}>{b.tipo}</span>
+                      <p className="text-sm text-zinc-700 font-medium">{b.descricao}</p>
+                    </div>
+                    {b.valorEstimado && <p className="text-xs text-zinc-400 mb-2">Valor estimado: {formatBRL(b.valorEstimado)}</p>}
+                    <div className="flex gap-2">
+                      <button onClick={() => confirmarBem(b)} className="bg-brand text-zinc-900 text-xs font-medium px-3 py-1 rounded-lg">Adicionar ao patrimônio</button>
+                      <button onClick={() => ignorarBem(b._id)} className="border border-zinc-200 text-zinc-500 text-xs px-3 py-1 rounded-lg hover:bg-zinc-50">Ignorar</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {datasExtraidas.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-zinc-500 mb-2">Datas identificadas — adicione ao perfil e/ou crie lembretes anuais</p>
+              <div className="flex flex-col gap-2">
+                {datasExtraidas.map((d) => (
+                  <div key={d._id} className="bg-pink-50 border border-pink-100 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div>
+                        <p className="text-sm text-zinc-700 font-medium">{d.tipo} — {d.descricao}</p>
+                        <p className="text-xs text-zinc-400">{d.data}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <button onClick={() => confirmarData(d)} className="bg-brand text-zinc-900 text-xs font-medium px-3 py-1 rounded-lg">Adicionar ao perfil</button>
+                      <button
+                        onClick={() => adicionarDataCalendario(d)}
+                        disabled={calendarStatus === 'loading'}
+                        className="flex items-center gap-1.5 border border-zinc-300 bg-white text-zinc-700 text-xs font-medium px-3 py-1 rounded-lg hover:bg-zinc-50 disabled:opacity-50"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5"><path d="M12 0C5.383 0 0 5.383 0 12s5.383 12 12 12 12-5.383 12-12S18.617 0 12 0z" fill="#4285F4"/><path d="M12 0C5.383 0 0 5.383 0 12s5.383 12 12 12V0z" fill="#34A853"/><path d="M0 12C0 5.383 5.383 0 12 0v24C5.383 24 0 18.617 0 12z" fill="#FBBC05"/><path d="M12 24c6.617 0 12-5.383 12-12S18.617 0 12 0v24z" fill="#EA4335"/></svg>
+                        Lembrete anual no Google Agenda
+                      </button>
+                      <button onClick={() => ignorarData(d._id)} className="border border-zinc-200 text-zinc-500 text-xs px-3 py-1 rounded-lg hover:bg-zinc-50">Ignorar</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
