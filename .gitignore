@@ -490,7 +490,7 @@ dist-ssr/
 *.local
 
 ## Build do React copiado para a API
-src/Hackaton.Api/wwwroot/
+src/backend/Hackaton.Api/wwwroot/
 
 ## macOS
 .DS_Store

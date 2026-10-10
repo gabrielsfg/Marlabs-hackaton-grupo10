@@ -17,7 +17,7 @@ export default defineConfig({
   },
   build: {
     // O build vai direto para o wwwroot da API (monolito)
-    outDir: '../Hackaton.Api/wwwroot',
+    outDir: '../backend/Hackaton.Api/wwwroot',
     emptyOutDir: true,
   },
 })
