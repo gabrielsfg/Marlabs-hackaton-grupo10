@@ -1,0 +1,16 @@
+namespace Hackaton.Shared.Dtos.Response
+{
+    public class ClientResponse
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Profile { get; set; } = string.Empty;
+        public string Cpf { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public decimal FinancialAssets { get; set; }
+        public decimal PhysicalAssets { get; set; }
+        public decimal OutsideInstitutionPercentage { get; set; }
+        public int AlertCount { get; set; }
+        public string NextDate { get; set; } = string.Empty;
+    }
+}

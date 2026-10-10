@@ -1,14 +1,28 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { login } from '../features/auth/api'
 
 export default function Login() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('rafael.mendes@demo.com')
-  const [senha, setSenha] = useState('············')
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [erro, setErro] = useState('')
+  const [entrando, setEntrando] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    navigate('/dashboard')
+    setErro('')
+    setEntrando(true)
+
+    try {
+      const response = await login({ email, password: senha })
+      localStorage.setItem('accessToken', response.accessToken)
+      navigate('/dashboard')
+    } catch (error) {
+      setErro(error.response?.data?.detail || error.message || 'Nao foi possivel entrar')
+    } finally {
+      setEntrando(false)
+    }
   }
 
   return (
@@ -62,11 +76,14 @@ export default function Login() {
               />
             </div>
 
+            {erro && <p role="alert" className="text-sm text-red-600">{erro}</p>}
+
             <button
               type="submit"
-              className="w-full bg-brand hover:brightness-95 text-zinc-900 font-semibold py-3 rounded-lg transition-all mt-1"
+              disabled={entrando}
+              className="w-full bg-brand hover:brightness-95 disabled:opacity-60 text-zinc-900 font-semibold py-3 rounded-lg transition-all mt-1"
             >
-              Entrar
+              {entrando ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
 

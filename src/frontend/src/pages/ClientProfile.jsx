@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Cell,
 } from 'recharts'
 import Navbar from '../components/Navbar'
 import { clientes, alertas, formatBRL } from '../data/mockData'
+import { getClient } from '../features/clients/api'
 
 const TIPO_CORES = {
   CDB: '#1C1C1C',
@@ -25,18 +26,90 @@ const BEM_STYLE = {
 export default function ClientProfile() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const cliente = clientes.find((c) => c.id === Number(id)) || clientes[0]
-
-  const alertasCliente = alertas.filter((a) => a.clienteId === cliente.id)
-  const totalFisico = cliente.bens.reduce((s, b) => s + b.valorEstimado, 0)
-  const patrimonioTotal = cliente.patrimonioFinanceiro + totalFisico
-
-  const [bens, setBens] = useState(cliente.bens)
+  const mockClient = clientes.find((item) => String(item.id) === id)
+  const [client, setClient] = useState(null)
+  const [loadedClientId, setLoadedClientId] = useState(null)
+  const [error, setError] = useState('')
+  const [bens, setBens] = useState([])
   const [formBem, setFormBem] = useState({ tipo: 'Imóvel', descricao: '', valorEstimado: '', avaliadoEm: '', situacao: 'Quitado' })
   const [nota, setNota] = useState('')
   const [notaResultado, setNotaResultado] = useState(null)
   const [insights, setInsights] = useState(null)
-  const [timeline, setTimeline] = useState(cliente.timeline)
+  const [timeline, setTimeline] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+
+    getClient(id)
+      .then((data) => {
+        if (cancelled) return
+        setClient(data)
+        setError('')
+        setBens(mockClient?.bens || [])
+        setTimeline(mockClient?.timeline || [])
+        setLoadedClientId(id)
+      })
+      .catch((requestError) => {
+        if (cancelled) return
+        setError(requestError.response?.data?.detail || requestError.message)
+        setLoadedClientId(id)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [id, mockClient])
+
+  if (loadedClientId !== id) {
+    return <p className="p-6 text-sm text-zinc-500">Carregando perfil do cliente...</p>
+  }
+
+  if (error || !client) {
+    return (
+      <div className="p-6">
+        <p role="alert" className="text-sm text-red-600">{error || 'Cliente nao encontrado.'}</p>
+        <button onClick={() => navigate('/clientes')} className="text-sm text-zinc-500 hover:text-zinc-700 mt-4">
+          Voltar para clientes
+        </button>
+      </div>
+    )
+  }
+
+  const clientInitials = client.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+  const cliente = {
+    ...(mockClient || {
+      cor: 'bg-zinc-200',
+      idade: null,
+      familiares: [],
+      posicoes: [],
+      objetivos: [],
+      lembretes: [],
+      vencimentos12m: [],
+    }),
+    id: client.id,
+    iniciais: clientInitials,
+    nome: client.name,
+    perfil: client.profile,
+    cpf: client.cpf,
+    email: client.email,
+    patrimonioFinanceiro: client.financialAssets,
+    patrimonioFisico: client.physicalAssets,
+    foraInstituicao: client.outsideInstitutionPercentage,
+    alertas: client.alertCount,
+    proximaData: client.nextDate,
+  }
+
+  const alertasCliente = mockClient ? alertas.filter((a) => a.clienteId === mockClient.id) : []
+  const totalFisico = bens.length
+    ? bens.reduce((total, bem) => total + bem.valorEstimado, 0)
+    : cliente.patrimonioFisico
+  const patrimonioTotal = cliente.patrimonioFinanceiro + totalFisico
 
   const adicionarBem = () => {
     if (!formBem.descricao.trim() || !formBem.valorEstimado) return
@@ -103,11 +176,12 @@ export default function ClientProfile() {
             <div>
               <h1 className="text-2xl font-bold text-zinc-900">{cliente.nome}</h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="text-sm text-zinc-500">{cliente.idade} anos</span>
+                {cliente.idade && <span className="text-sm text-zinc-500">{cliente.idade} anos</span>}
                 <span className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full">
                   Perfil {cliente.perfil.toLowerCase()}
                 </span>
                 <span className="text-sm text-zinc-500">CPF {cliente.cpf}</span>
+                <span className="text-sm text-zinc-500">{cliente.email}</span>
               </div>
               {cliente.familiares.length > 0 && (
                 <p className="text-sm text-zinc-500 mt-1">
@@ -126,7 +200,7 @@ export default function ClientProfile() {
         </div>
 
         {/* Alertas */}
-        {alertasCliente.length > 0 && (
+        {(alertasCliente.length > 0 || cliente.alertas > 0) && (
           <div className="mb-5">
             <h2 className="font-semibold text-zinc-900 mb-2">Alertas deste cliente</h2>
             <div className="flex flex-col gap-2">
@@ -140,6 +214,11 @@ export default function ClientProfile() {
                   <p className="text-sm text-amber-600 font-medium">Ação sugerida: {a.acaoSugerida}</p>
                 </div>
               ))}
+              {alertasCliente.length === 0 && (
+                <p className="bg-white rounded-xl border border-amber-100 p-4 text-sm text-zinc-600">
+                  Este cliente possui {cliente.alertas} alerta{cliente.alertas > 1 ? 's' : ''} cadastrado{cliente.alertas > 1 ? 's' : ''}.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -197,7 +276,7 @@ export default function ClientProfile() {
             const imoveis = bens.filter((b) => b.tipo === 'Imóvel').reduce((s, b) => s + b.valorEstimado, 0)
             const veiculos = bens.filter((b) => b.tipo === 'Veículo').reduce((s, b) => s + b.valorEstimado, 0)
             const outros = bens.filter((b) => b.tipo === 'Outro').reduce((s, b) => s + b.valorEstimado, 0)
-            const total = imoveis + veiculos + outros
+            const total = imoveis + veiculos + outros || cliente.patrimonioFisico
             return (
               <div className="grid grid-cols-4 gap-3 mb-4">
                 <div className="bg-zinc-50 rounded-xl p-4">
@@ -227,10 +306,10 @@ export default function ClientProfile() {
           {/* Barra de composição */}
           {(() => {
             const total = patrimonioTotal
-            const pctFin = ((cliente.patrimonioFinanceiro / total) * 100).toFixed(1)
-            const pctIm = (bens.filter((b) => b.tipo === 'Imóvel').reduce((s, b) => s + b.valorEstimado, 0) / total * 100).toFixed(1)
-            const pctVeic = (bens.filter((b) => b.tipo === 'Veículo').reduce((s, b) => s + b.valorEstimado, 0) / total * 100).toFixed(1)
-            const pctOut = (bens.filter((b) => b.tipo === 'Outro').reduce((s, b) => s + b.valorEstimado, 0) / total * 100).toFixed(1)
+            const pctFin = total > 0 ? ((cliente.patrimonioFinanceiro / total) * 100).toFixed(1) : '0.0'
+            const pctIm = total > 0 ? (bens.filter((b) => b.tipo === 'Imóvel').reduce((s, b) => s + b.valorEstimado, 0) / total * 100).toFixed(1) : '0.0'
+            const pctVeic = total > 0 ? (bens.filter((b) => b.tipo === 'Veículo').reduce((s, b) => s + b.valorEstimado, 0) / total * 100).toFixed(1) : '0.0'
+            const pctOut = total > 0 ? (bens.filter((b) => b.tipo === 'Outro').reduce((s, b) => s + b.valorEstimado, 0) / total * 100).toFixed(1) : '0.0'
             return (
               <div className="mb-4">
                 <p className="text-xs font-medium text-zinc-700 mb-2">Composição do patrimônio total</p>

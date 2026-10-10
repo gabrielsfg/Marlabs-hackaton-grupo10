@@ -11,6 +11,7 @@ namespace Hackaton.Data.Data
         }
 
         public DbSet<User> Users => Set<User>();
+        public DbSet<Client> Clients => Set<Client>();
 
         public override int SaveChanges()
         {

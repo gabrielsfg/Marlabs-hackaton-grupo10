@@ -22,11 +22,13 @@ namespace Hackaton.Services.Extensions
             TypeAdapterConfig.GlobalSettings.Scan(assembly);
 
             services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IClientRepository, ClientRepository>();
 
             services.AddSingleton<IPasswordHasher, PasswordHasher>();
             services.AddSingleton<ITokenService, TokenService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IClientService, ClientService>();
 
             return services;
         }
