@@ -22,6 +22,15 @@ namespace Hackaton.Tests.Unit.Helpers
             Assert.False(_passwordHasher.Verify("Senha124", hash));
         }
 
+        [Theory]
+        [InlineData("")]
+        [InlineData("hash-invalido")]
+        [InlineData("100000.%%% .%%%")]
+        public void Verify_InvalidHash_ReturnsFalse(string hash)
+        {
+            Assert.False(_passwordHasher.Verify("Senha123", hash));
+        }
+
         [Fact]
         public void Hash_SamePasswordTwice_ReturnsDifferentHashes()
         {
