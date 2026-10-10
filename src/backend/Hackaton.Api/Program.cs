@@ -1,6 +1,8 @@
+using Hackaton.Api.Extensions;
 using Hackaton.Data.Data;
 using Hackaton.Services.Extensions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,11 +18,25 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         npgsql => npgsql.EnableRetryOnFailure()));
 
 builder.Services.AddApplicationServices();
+builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Cole o accessToken retornado pelo /api/auth/login"
+    });
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+    });
+});
 
 var app = builder.Build();
 
@@ -47,6 +63,9 @@ api.MapGet("/health/db", async (ApplicationDbContext db, CancellationToken ct) =
             ? Results.Ok(new { status = "ok", database = "connected" })
             : Results.Problem("Nao foi possivel conectar ao banco", statusCode: StatusCodes.Status503ServiceUnavailable))
     .WithName("HealthDb");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

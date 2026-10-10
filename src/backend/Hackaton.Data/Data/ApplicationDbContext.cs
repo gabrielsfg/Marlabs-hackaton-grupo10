@@ -1,4 +1,5 @@
 using Hackaton.Domain.Common;
+using Hackaton.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hackaton.Data.Data
@@ -8,6 +9,8 @@ namespace Hackaton.Data.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
         }
+
+        public DbSet<User> Users => Set<User>();
 
         public override int SaveChanges()
         {

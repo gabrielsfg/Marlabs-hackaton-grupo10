@@ -131,7 +131,7 @@ namespace Hackaton.Shared.Dtos.Response
 {
     public class AccountResponse
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public decimal Balance { get; set; }
         public BankResponse Bank { get; set; } = new();
@@ -144,6 +144,8 @@ namespace Hackaton.Shared.Dtos.Response
 
 - Toda entity herda de `BaseEntity` (`Id`, `CreatedAt`, `UpdatedAt`). `CreatedAt`/`UpdatedAt` sao preenchidos
   automaticamente pelo `ApplicationDbContext`: nao preencha na mao.
+- `Id` e `Guid` (UUID v7), gerado no proprio `BaseEntity`: nunca use `int` sequencial como id (da para adivinhar
+  ids de outros usuarios). Chaves estrangeiras tambem sao `Guid` (`ClientId`), e rotas usam `{id:guid}`.
 - Nomes de tabela e coluna no **padrao do EF (PascalCase)**. Em SQL escrito a mao, use aspas: `SELECT "Name" FROM "Users"`.
 - Configuracao da entity (tamanho, indices, relacionamentos) via `IEntityTypeConfiguration<T>` em `Data/Mappings`,
   nunca por Data Annotations na entity. O `ApplicationDbContext` ja aplica tudo de `Data/Mappings` automaticamente.
@@ -197,7 +199,7 @@ namespace Hackaton.Domain.Interfaces.Repositories
 {
     public interface IUserRepository
     {
-        Task<User?> GetByIdAsync(int id, CancellationToken cancellationToken);
+        Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
         Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken);
         Task AddAsync(User user, CancellationToken cancellationToken);
         Task SaveChangesAsync(CancellationToken cancellationToken);
@@ -219,7 +221,7 @@ namespace Hackaton.Data.Repositories
             _context = context;
         }
 
-        public Task<User?> GetByIdAsync(int id, CancellationToken cancellationToken) =>
+        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
             _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
         public Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken) =>
@@ -277,7 +279,7 @@ namespace Hackaton.Services.Services
             _userRepository = userRepository;
         }
 
-        public async Task<Result<UserResponse>> GetByIdAsync(int id, CancellationToken cancellationToken)
+        public async Task<Result<UserResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken)
         {
             var user = await _userRepository.GetByIdAsync(id, cancellationToken);
             if (user is null)
@@ -348,8 +350,8 @@ namespace Hackaton.Api.Controllers
             _createValidator = createValidator;
         }
 
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
+        [HttpGet("{id:guid}")]
+        public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         {
             var result = await _userService.GetByIdAsync(id, cancellationToken);
             return HandleResult(result);
