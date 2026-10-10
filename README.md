@@ -7,9 +7,9 @@ Hackaton.sln
 src/
 ├── backend/
 │   ├── Hackaton.Api/       -> Entry point: Controllers, Middleware, Extensions (serve o React em producao a partir do wwwroot)
-│   ├── Hackaton.Services/  -> Regras de negocio: Services, Validations, Extensions (DI), Helpers
-│   ├── Hackaton.Data/      -> Persistencia: Data (DbContext), Mappings
-│   ├── Hackaton.Domain/    -> Entities, Common, Interfaces/Services
+│   ├── Hackaton.Services/  -> Regras de negocio: Services, Validations, MapsterConfigs, Extensions (DI), Helpers
+│   ├── Hackaton.Data/      -> Persistencia: Data (DbContext), Mappings (config EF), Repositories
+│   ├── Hackaton.Domain/    -> Entities, Common, Interfaces/Services, Interfaces/Repositories
 │   └── Hackaton.Shared/    -> Dtos/Request, Dtos/Response, Enums, Models, Helpers
 └── frontend/               -> React + Vite
     └── src/
@@ -20,6 +20,8 @@ src/
 ```
 
 Dependencias: `Api -> Services -> Data -> Domain -> Shared`.
+
+**Padroes de codigo do time (para pessoas e IAs): ver [AGENTS.md](AGENTS.md).**
 
 ## Pre-requisitos
 

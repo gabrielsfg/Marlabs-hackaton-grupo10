@@ -1,4 +1,5 @@
 using Hackaton.Data.Data;
+using Hackaton.Services.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -14,11 +15,16 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         npgsql => npgsql.EnableRetryOnFailure()));
 
+builder.Services.AddApplicationServices();
+builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+app.UseExceptionHandler();
 app.UseSerilogRequestLogging();
 
 if (app.Environment.IsDevelopment())
@@ -41,6 +47,8 @@ api.MapGet("/health/db", async (ApplicationDbContext db, CancellationToken ct) =
             ? Results.Ok(new { status = "ok", database = "connected" })
             : Results.Problem("Nao foi possivel conectar ao banco", statusCode: StatusCodes.Status503ServiceUnavailable))
     .WithName("HealthDb");
+
+app.MapControllers();
 
 // Qualquer rota que nao seja /api cai no index.html (rotas do React)
 app.MapFallbackToFile("/index.html");
