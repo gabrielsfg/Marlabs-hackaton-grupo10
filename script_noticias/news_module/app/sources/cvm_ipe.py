@@ -15,6 +15,12 @@ from app.models import CorporateEvent
 
 logger = logging.getLogger(__name__)
 
+
+class EventFetchResult(list):
+    def __init__(self, items=(), failed_years: int = 0):
+        super().__init__(items)
+        self.failed_years = failed_years
+
 REQUIRED_COLUMNS = {
     "CNPJ_Companhia",
     "Nome_Companhia",
@@ -112,12 +118,14 @@ def fetch_events(janela_inicio: datetime, janela_fim: datetime) -> list[Corporat
     categories = {_normalize(item) for item in settings.cvm_categorias}
     years = {inicio.year, fim.year}
     events: dict[str, CorporateEvent] = {}
+    failed_years = 0
 
     for year in sorted(years):
         try:
             rows = _read_zip(_download_year(year, settings))
         except (requests.RequestException, OSError, zipfile.BadZipFile, ValueError) as error:
             logger.warning("falha ao ler dataset IPE de %s: %s", year, error)
+            failed_years += 1
             continue
 
         for row in rows:
@@ -147,4 +155,7 @@ def fetch_events(janela_inicio: datetime, janela_fim: datetime) -> list[Corporat
                 texto_status="nao_tentado",
             )
 
-    return sorted(events.values(), key=lambda event: event.entregue_em, reverse=True)
+    return EventFetchResult(
+        sorted(events.values(), key=lambda event: event.entregue_em, reverse=True),
+        failed_years,
+    )

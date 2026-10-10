@@ -5,7 +5,7 @@ from pathlib import Path
 
 from app import state
 from app.config import load_settings
-from app.llm.client import OpenAICompatibleClient
+from app.llm.client import create_client
 from app.llm.summarizer import summarize
 from app.models import IngestionPayload
 from app.render import render_markdown
@@ -13,6 +13,18 @@ from app.sources.cvm_ipe import fetch_events
 from app.sources.infomoney_rss import fetch_news
 from app.sources.pdf_text import enrich_with_pdf_text
 from app.window import get_window
+
+
+class _JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        return json.dumps(
+            {
+                "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
+                "level": record.levelname,
+                "message": record.getMessage(),
+            },
+            ensure_ascii=False,
+        )
 
 
 def _write_json(path: Path, value) -> None:
@@ -25,24 +37,35 @@ def run(now: datetime | None = None, window_hours: int = 24, dry_run: bool = Fal
     run_dir = settings.data_dir / "runs" / fim.date().isoformat()
     run_dir.mkdir(parents=True, exist_ok=True)
     log_path = run_dir / "run.log"
-    logging.basicConfig(filename=log_path, level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.basicConfig(filename=log_path, level=logging.INFO, force=True)
+    for handler in logging.getLogger().handlers:
+        handler.setFormatter(_JsonFormatter())
     logger = logging.getLogger(__name__)
 
     source_failures = 0
     try:
         news = fetch_news(inicio, fim)
+        source_failures += getattr(news, "failed_feeds", 0)
     except Exception as error:
         logger.exception("falha na fonte InfoMoney: %s", error)
         news = []
         source_failures += 1
     try:
         events = fetch_events(inicio, fim)
+        source_failures += getattr(events, "failed_years", 0)
     except Exception as error:
         logger.exception("falha na fonte CVM: %s", error)
         events = []
         source_failures += 1
 
+    logger.info("fontes: noticias=%s eventos=%s falhas=%s", len(news), len(events), source_failures)
     candidates = state.filter_new([*news, *events])
+    logger.info(
+        "itens: na_janela=%s novos=%s descartados=%s",
+        len(news) + len(events),
+        len(candidates),
+        len(news) + len(events) - len(candidates),
+    )
     new_news = [item for item in candidates if item in news]
     new_events = [item for item in candidates if item in events]
     if settings.fetch_pdf_text and new_events:
@@ -52,13 +75,13 @@ def run(now: datetime | None = None, window_hours: int = 24, dry_run: bool = Fal
 
     if not candidates:
         logger.info("sem novidades")
-        return 2 if source_failures == 1 else 1 if source_failures == 2 else 0
+        return 1 if source_failures >= 2 else 2 if source_failures else 0
     if dry_run or skip_llm:
         logger.info("execucao sem LLM: %s noticias, %s eventos", len(new_news), len(new_events))
         return 0 if source_failures == 0 else 2
 
     try:
-        client = OpenAICompatibleClient(settings.llm_api_key, settings.llm_model)
+        client = create_client(settings)
         digest = summarize(payload, client, settings.max_input_chars)
         _write_json(run_dir / "digest.json", digest.model_dump(mode="json"))
         (run_dir / "digest.md").write_text(render_markdown(digest), encoding="utf-8")

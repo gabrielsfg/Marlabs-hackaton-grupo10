@@ -31,7 +31,8 @@ python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Preencha `LLM_API_KEY`, `LLM_PROVIDER` e `LLM_MODEL` no `.env`. O arquivo `.env` nao deve ser versionado.
+Preencha `LLM_API_KEY` no `.env` com a chave da Groq. O arquivo `.env` nao deve ser versionado. O MVP usa a
+Groq e o modelo `llama-3.1-8b-instant` por padrao.
 
 ## Execucao manual
 
@@ -66,9 +67,7 @@ As variaveis disponiveis e seus valores padrao estao em `.env.example`:
 | `FETCH_PDF_TEXT` | Habilita extracao de PDFs |
 | `PDF_MAX_CHARS` | Limite de texto extraido por PDF |
 | `PDF_MAX_BYTES` | Limite de tamanho por PDF |
-| `LLM_PROVIDER` | Provedor configurado |
-| `LLM_API_KEY` | Chave do provedor, somente por ambiente |
-| `LLM_MODEL` | Modelo do provedor |
+| `LLM_API_KEY` | Chave da Groq, somente por ambiente |
 | `MAX_INPUT_CHARS` | Limite de entrada enviada ao LLM |
 | `DATA_DIR` | Diretório de dados, padrao `./data` |
 
@@ -126,8 +125,6 @@ jobs:
       - run: python -m app.run_daily
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
-          LLM_MODEL: ${{ secrets.LLM_MODEL }}
       - uses: actions/upload-artifact@v4
         with:
           name: news-data

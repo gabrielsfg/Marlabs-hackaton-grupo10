@@ -1,6 +1,5 @@
 import json
 import re
-from datetime import date
 
 from app.models import Digest, IngestionPayload
 from app.llm.client import LLMClient
@@ -47,6 +46,9 @@ def summarize(payload: IngestionPayload, client: LLMClient, max_input_chars: int
         chunks = []
         current = header
         for record in records:
+            available = max_input_chars - len(header) - 1
+            if len(record) > available:
+                record = record[:available]
             if len(current) + len(record) + 1 > max_input_chars and current != header:
                 chunks.append(current)
                 current = header

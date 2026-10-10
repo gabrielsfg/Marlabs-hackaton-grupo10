@@ -18,6 +18,12 @@ from app.models import NewsItem
 logger = logging.getLogger(__name__)
 
 
+class NewsFetchResult(list):
+    def __init__(self, items=(), failed_feeds: int = 0):
+        super().__init__(items)
+        self.failed_feeds = failed_feeds
+
+
 def _canonical_url(url: str) -> str:
     parsed = urlsplit(url.strip())
     query = [
@@ -68,6 +74,7 @@ def fetch_news(janela_inicio: datetime, janela_fim: datetime) -> list[NewsItem]:
     inicio = janela_inicio.astimezone(ZoneInfo(timezone_name))
     fim = janela_fim.astimezone(ZoneInfo(timezone_name))
     items: dict[str, NewsItem] = {}
+    failed_feeds = 0
 
     for feed_url in settings.infomoney_feeds:
         try:
@@ -80,6 +87,7 @@ def fetch_news(janela_inicio: datetime, janela_fim: datetime) -> list[NewsItem]:
             parsed = feedparser.parse(content)
         except (requests.RequestException, OSError) as error:
             logger.warning("falha ao buscar feed %s: %s", feed_url, error)
+            failed_feeds += 1
             continue
 
         for entry in parsed.entries:
@@ -109,4 +117,7 @@ def fetch_news(janela_inicio: datetime, janela_fim: datetime) -> list[NewsItem]:
             if item_id not in items:
                 items[item_id] = item
 
-    return sorted(items.values(), key=lambda item: item.publicado_em, reverse=True)
+    return NewsFetchResult(
+        sorted(items.values(), key=lambda item: item.publicado_em, reverse=True),
+        failed_feeds,
+    )

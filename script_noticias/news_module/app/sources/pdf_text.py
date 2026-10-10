@@ -1,6 +1,7 @@
 import io
 import logging
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import pypdf
@@ -18,12 +19,20 @@ def _clean_text(text: str) -> str:
 
 def _download_text(event: CorporateEvent, settings) -> CorporateEvent:
     try:
-        response = requests.get(
-            event.link_documento,
-            headers={"User-Agent": settings.user_agent},
-            timeout=settings.http_timeout,
-        )
-        response.raise_for_status()
+        response = None
+        for attempt in range(getattr(settings, "http_retries", 3) + 1):
+            try:
+                response = requests.get(
+                    event.link_documento,
+                    headers={"User-Agent": settings.user_agent},
+                    timeout=settings.http_timeout,
+                )
+                response.raise_for_status()
+                break
+            except requests.RequestException:
+                if attempt >= getattr(settings, "http_retries", 3):
+                    raise
+                time.sleep(2**attempt)
         content_type = response.headers.get("Content-Type", "").lower()
         content = response.content
         if "pdf" not in content_type or len(content) > settings.pdf_max_bytes:
@@ -39,7 +48,7 @@ def _download_text(event: CorporateEvent, settings) -> CorporateEvent:
                 "texto_status": "ok",
             }
         )
-    except (requests.RequestException, OSError, ValueError, pypdf.errors.PdfReadError) as error:
+    except Exception as error:
         logger.warning("falha ao extrair PDF do evento %s: %s", event.id, error)
         return event.model_copy(update={"texto_documento": None, "texto_status": "falha"})
 

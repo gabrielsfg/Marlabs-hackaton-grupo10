@@ -15,6 +15,8 @@ DEFAULT_CVM_CATEGORIAS = [
     "Aviso aos Acionistas",
 ]
 
+DEFAULT_LLM_MODEL = "llama-3.1-8b-instant"
+
 _ENV_LOADED = False
 
 
@@ -62,7 +64,6 @@ class Settings:
     fetch_pdf_text: bool
     pdf_max_chars: int
     pdf_max_bytes: int
-    llm_provider: str
     llm_api_key: str
     llm_model: str
     max_input_chars: int
@@ -87,9 +88,8 @@ def load_settings() -> Settings:
         fetch_pdf_text=_as_bool(os.environ.get("FETCH_PDF_TEXT", "true")),
         pdf_max_chars=int(os.environ.get("PDF_MAX_CHARS", "6000")),
         pdf_max_bytes=int(os.environ.get("PDF_MAX_BYTES", "10000000")),
-        llm_provider=os.environ.get("LLM_PROVIDER", ""),
         llm_api_key=os.environ.get("LLM_API_KEY", ""),
-        llm_model=os.environ.get("LLM_MODEL", ""),
+        llm_model=os.environ.get("LLM_MODEL") or DEFAULT_LLM_MODEL,
         max_input_chars=int(os.environ.get("MAX_INPUT_CHARS", "60000")),
         data_dir=Path(os.environ.get("DATA_DIR", "./data")),
     )
