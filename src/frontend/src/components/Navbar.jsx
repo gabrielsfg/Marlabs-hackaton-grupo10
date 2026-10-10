@@ -5,6 +5,11 @@ export default function Navbar() {
   const navigate = useNavigate()
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/')
+  const handleLogout = () => {
+    sessionStorage.removeItem('accessToken')
+    sessionStorage.removeItem('user')
+    navigate('/')
+  }
 
   return (
     <nav className="bg-zinc-900 text-white flex items-center px-6 py-3 gap-6">
@@ -23,7 +28,7 @@ export default function Navbar() {
       <div className="flex items-center gap-2 ml-auto">
         <span className="text-sm text-zinc-300">Rafael Mendes</span>
         <button
-          onClick={() => navigate('/')}
+          onClick={handleLogout}
           className="border border-zinc-600 text-sm px-3 py-1 rounded hover:bg-zinc-700 transition-colors"
         >
           Sair

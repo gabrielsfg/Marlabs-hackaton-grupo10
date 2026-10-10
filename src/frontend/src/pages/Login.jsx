@@ -1,14 +1,29 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { login as loginRequest } from '../features/auth/api'
 
 export default function Login() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('rafael.mendes@demo.com')
-  const [senha, setSenha] = useState('············')
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    navigate('/dashboard')
+    setError('')
+    setIsSubmitting(true)
+
+    try {
+      const response = await loginRequest({ email, password: senha })
+      sessionStorage.setItem('accessToken', response.accessToken)
+      sessionStorage.setItem('user', JSON.stringify(response.user))
+      navigate('/dashboard')
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail ?? 'Não foi possível conectar ao servidor. Tente novamente.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -43,30 +58,49 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1.5">E-mail</label>
+              <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1.5">E-mail</label>
               <input
+                id="email"
                 type="email"
+                autoComplete="username"
+                required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  setError('')
+                }}
                 className="w-full border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1.5">Senha</label>
+              <label htmlFor="password" className="block text-sm font-medium text-zinc-700 mb-1.5">Senha</label>
               <input
+                id="password"
                 type="password"
+                autoComplete="current-password"
+                required
                 value={senha}
-                onChange={(e) => setSenha(e.target.value)}
+                onChange={(e) => {
+                  setSenha(e.target.value)
+                  setError('')
+                }}
                 className="w-full border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
               />
             </div>
 
+            {error && (
+              <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" aria-live="polite">
+                {error}
+              </p>
+            )}
+
             <button
               type="submit"
-              className="w-full bg-brand hover:brightness-95 text-zinc-900 font-semibold py-3 rounded-lg transition-all mt-1"
+              disabled={isSubmitting}
+              className="w-full bg-brand hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60 text-zinc-900 font-semibold py-3 rounded-lg transition-all mt-1"
             >
-              Entrar
+              {isSubmitting ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
 
