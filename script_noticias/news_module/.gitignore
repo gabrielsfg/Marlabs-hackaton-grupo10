@@ -1,0 +1,8 @@
+.env
+data/runs/*
+data/state/*
+!data/runs/.gitkeep
+!data/state/.gitkeep
+__pycache__/
+.pytest_cache/
+*.pyc

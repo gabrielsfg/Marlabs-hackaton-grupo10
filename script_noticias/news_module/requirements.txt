@@ -1,0 +1,7 @@
+requests
+feedparser
+beautifulsoup4
+pydantic>=2
+pypdf
+pytest
+python-dotenv
