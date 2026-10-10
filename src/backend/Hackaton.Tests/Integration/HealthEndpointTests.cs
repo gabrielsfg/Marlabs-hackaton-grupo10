@@ -1,13 +1,13 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Hackaton.Tests.Helpers;
 
 namespace Hackaton.Tests.Integration
 {
-    public class HealthEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+    public class HealthEndpointTests : IClassFixture<ApiFactory>
     {
         private readonly HttpClient _client;
 
-        public HealthEndpointTests(WebApplicationFactory<Program> factory)
+        public HealthEndpointTests(ApiFactory factory)
         {
             _client = factory.CreateClient();
         }

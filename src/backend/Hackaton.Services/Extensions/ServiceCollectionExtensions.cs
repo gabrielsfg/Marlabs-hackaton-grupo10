@@ -1,4 +1,9 @@
 using FluentValidation;
+using Hackaton.Data.Repositories;
+using Hackaton.Domain.Interfaces.Repositories;
+using Hackaton.Domain.Interfaces.Services;
+using Hackaton.Services.Helpers;
+using Hackaton.Services.Services;
 using Mapster;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,6 +20,13 @@ namespace Hackaton.Services.Extensions
 
             // Carrega os IRegister de Services/MapsterConfigs (configuracoes customizadas do Mapster)
             TypeAdapterConfig.GlobalSettings.Scan(assembly);
+
+            services.AddScoped<IUserRepository, UserRepository>();
+
+            services.AddSingleton<IPasswordHasher, PasswordHasher>();
+            services.AddSingleton<ITokenService, TokenService>();
+            services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IUserService, UserService>();
 
             return services;
         }

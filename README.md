@@ -47,6 +47,18 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=aws-0-us-eas
 
 Para testar: `GET /api/health/db` deve responder `{ "status": "ok", "database": "connected" }`.
 
+## Autenticacao (JWT)
+
+Login e cadastro em `POST /api/auth/register` e `POST /api/auth/login`, que devolvem um `accessToken`. As demais
+rotas exigem o header `Authorization: Bearer <accessToken>` (no Swagger, botao **Authorize**). O token carrega o Id
+do usuario na claim `sub`; nos controllers use `CurrentUserId` para filtrar os dados do usuario logado.
+
+A chave de assinatura nao fica no `appsettings`. Cada um gera a sua localmente, uma vez (minimo 32 caracteres):
+
+```powershell
+dotnet user-secrets set "Jwt:Key" "$([Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48)))" --project src/backend/Hackaton.Api
+```
+
 ## Rodando em desenvolvimento
 
 ### Visual Studio (Windows)
