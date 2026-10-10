@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
 import ClientProfile from './pages/ClientProfile'
 import Simulation from './pages/Simulation'
+import { isAuthenticated } from './lib/session'
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
@@ -29,7 +30,7 @@ export default function App() {
 
 function ProtectedRoute() {
   const location = useLocation()
-  return sessionStorage.getItem('accessToken')
+  return isAuthenticated()
     ? <Outlet />
     : <Navigate to="/" replace state={{ from: location }} />
 }

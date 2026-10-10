@@ -1,26 +1,13 @@
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGoogleLogin } from '@react-oauth/google'
 import Navbar from '../components/Navbar'
-import { alertas as alertasMock, lembretes as lembretesIniciais, noticias, formatBRL } from '../data/mockData'
-import { criarEventoCalendario } from '../utils/googleCalendar'
-
-const ADVISOR_ID = import.meta.env.VITE_ADVISOR_ID || null
-
-function mapApiToAlerta(a, idx) {
-  return {
-    id: `api-${idx}`,
-    clienteId: a.clienteId,
-    titulo: a.clienteNome,
-    tipo: a.tipo,
-    prioridade: a.prioridade,
-    tag: a.label,
-    descricao: a.descricao,
-    acaoSugerida: a.acaoSugerida,
-    valor: a.valorDestaque,
-    labelValor: a.label,
-  }
-}
+import { alertas, lembretes as lembretesIniciais, noticias, formatBRL } from '../data/mockData'
+import { criarEventoCalendario, hojeLocalISO } from '../utils/googleCalendar'
+import { getFirstName, isDemoSession } from '../lib/session'
+import { getDailyActions } from '../features/dailyActions/api'
+import { createReminder, deleteReminder, getReminders, updateReminder } from '../features/reminders/api'
+import { getClients } from '../features/clients/api'
 
 const PRIORIDADE_STYLE = {
   Alta: 'bg-red-100 text-red-700',
@@ -34,32 +21,96 @@ const PRIORIDADE_BORDER = {
   Baixa: 'border-sky-200',
 }
 
-const todayISO = new Date().toISOString().split('T')[0]
-
 function formatarData(dateStr) {
   if (!dateStr) return '—'
   const [y, m, d] = dateStr.split('-')
   return `${d}/${m}/${y}`
 }
 
+const CLIENTES_DEMO = ['Carlos Menezes', 'Helena Duarte', 'Rodrigo Tavares', 'Beatriz Lima', 'Paulo Sampaio', 'Fernanda Prado']
+
+// Na demo tudo vem do mockData. Na conta real, acoes do dia e lembretes vem da API (carregados ao abrir a tela);
+// os clientes afetados por noticias ainda nao tem API
+function dadosDoDashboard() {
+  if (isDemoSession()) {
+    return {
+      alertas,
+      lembretes: lembretesIniciais,
+      noticias,
+      opcoesCliente: CLIENTES_DEMO.map((nome) => ({ value: nome, label: nome })),
+    }
+  }
+  return {
+    alertas: [],
+    lembretes: [],
+    noticias: noticias.map((n) => ({ ...n, clientesAfetados: [], totalAfetados: 0 })),
+    opcoesCliente: [],
+  }
+}
+
+// GET /api/dailyactions -> formato do ActionCard
+const acaoParaAlerta = (a, i) => ({
+  id: `api-${i}`,
+  clienteId: a.clientId,
+  titulo: a.clientName,
+  tipo: a.type,
+  prioridade: a.priority,
+  descricao: a.description,
+  acaoSugerida: a.suggestedAction,
+  valor: a.highlightValue,
+  labelValor: a.label,
+  dias: a.daysUntilDue,
+  dataRef: a.dueDate ? formatarData(a.dueDate) : null,
+})
+
+// /api/reminders -> formato da lista de lembretes
+const lembreteDaApi = (r) => ({
+  id: r.id,
+  texto: r.title,
+  clienteId: r.clientId,
+  clienteNome: r.clientName,
+  quando: r.dueDate,
+  concluido: r.isCompleted,
+})
+
 export default function Dashboard() {
+  const [dados] = useState(dadosDoDashboard)
+  const { noticias } = dados
+  const [demo] = useState(isDemoSession)
+  const [alertas, setAlertas] = useState(dados.alertas)
+  const [opcoesCliente, setOpcoesCliente] = useState(dados.opcoesCliente)
+  const [erroApi, setErroApi] = useState('')
   const navigate = useNavigate()
   const [filtroPrioridade, setFiltroPrioridade] = useState('Todas')
   const [filtroTipo, setFiltroTipo] = useState('Todos')
   const [concluidos, setConcluidos] = useState([])
-  const [alertas, setAlertas] = useState(alertasMock)
-  const [lembretes, setLembretes] = useState(lembretesIniciais)
+  const [lembretes, setLembretes] = useState(dados.lembretes)
+  const [novoLembrete, setNovoLembrete] = useState('')
+  // '' = sem cliente; na demo o valor e o nome, na conta real e o id do cliente
+  const [lembCliente, setLembCliente] = useState('')
+  // Data de hoje no fuso local, calculada ao abrir a tela
+  const [hoje] = useState(hojeLocalISO)
+  const [lembQuando, setLembQuando] = useState(hoje)
 
   useEffect(() => {
-    if (!ADVISOR_ID) return
-    fetch(`/api/acoes-do-dia/${ADVISOR_ID}`)
-      .then((r) => { if (!r.ok) throw new Error(); return r.json() })
-      .then((data) => setAlertas(data.map(mapApiToAlerta)))
-      .catch(() => { /* mantém mock */ })
-  }, [])
-  const [novoLembrete, setNovoLembrete] = useState('')
-  const [lembCliente, setLembCliente] = useState('Sem cliente')
-  const [lembQuando, setLembQuando] = useState(todayISO)
+    if (demo) return
+    let cancelled = false
+
+    Promise.all([getDailyActions(), getReminders(), getClients()])
+      .then(([acoes, lembretesApi, clientes]) => {
+        if (cancelled) return
+        setAlertas(acoes.map(acaoParaAlerta))
+        setLembretes(lembretesApi.map(lembreteDaApi))
+        setOpcoesCliente(clientes.map((c) => ({ value: c.id, label: c.name })))
+      })
+      .catch((requestError) => {
+        if (!cancelled) setErroApi(requestError.response?.data?.detail || 'Nao foi possivel carregar as acoes e os lembretes.')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [demo])
 
   // Google Calendar
   const [googleToken, setGoogleToken] = useState(null)
@@ -119,17 +170,23 @@ export default function Dashboard() {
   })
 
   const addLembrete = async () => {
-    if (!novoLembrete.trim()) return
-    const lembrete = {
-      id: Date.now(),
-      texto: novoLembrete,
-      clienteNome: lembCliente === 'Sem cliente' ? null : lembCliente,
-      quando: lembQuando,
-      concluido: false,
+    if (!novoLembrete.trim() || !lembQuando) return
+
+    let lembrete
+    if (demo) {
+      lembrete = { id: Date.now(), texto: novoLembrete, clienteNome: lembCliente || null, quando: lembQuando, concluido: false }
+    } else {
+      try {
+        lembrete = lembreteDaApi(await createReminder({ title: novoLembrete.trim(), dueDate: lembQuando, clientId: lembCliente || null }))
+      } catch (requestError) {
+        setErroApi(requestError.response?.data?.detail || 'Nao foi possivel salvar o lembrete.')
+        return
+      }
     }
+    setErroApi('')
     setLembretes((prev) => [...prev, lembrete])
     setNovoLembrete('')
-    setLembQuando(todayISO)
+    setLembQuando(hojeLocalISO())
 
     if (googleToken) {
       await enviarParaCalendario(googleToken, lembrete)
@@ -139,7 +196,35 @@ export default function Dashboard() {
     }
   }
 
-  const removeLembrete = (id) => setLembretes(lembretes.filter((l) => l.id !== id))
+  const removeLembrete = async (id) => {
+    if (!demo) {
+      try {
+        await deleteReminder(id)
+      } catch (requestError) {
+        setErroApi(requestError.response?.data?.detail || 'Nao foi possivel excluir o lembrete.')
+        return
+      }
+    }
+    setLembretes((prev) => prev.filter((l) => l.id !== id))
+  }
+
+  // Marcar como concluido tira o lembrete da lista (na conta real, salva no banco)
+  const concluirLembrete = async (lembrete) => {
+    if (!demo) {
+      try {
+        await updateReminder(lembrete.id, {
+          title: lembrete.texto,
+          dueDate: lembrete.quando,
+          clientId: lembrete.clienteId ?? null,
+          isCompleted: true,
+        })
+      } catch (requestError) {
+        setErroApi(requestError.response?.data?.detail || 'Nao foi possivel concluir o lembrete.')
+        return
+      }
+    }
+    setLembretes((prev) => prev.map((l) => (l.id === lembrete.id ? { ...l, concluido: true } : l)))
+  }
 
   return (
     <div className="min-h-screen bg-stone-100">
@@ -166,10 +251,11 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-6 py-6">
         <p className="text-zinc-500 text-sm mb-0.5">{todayCap}</p>
-        <h1 className="text-3xl font-bold text-zinc-900">Bom dia, Rafael</h1>
+        <h1 className="text-3xl font-bold text-zinc-900">Bom dia{getFirstName() ? `, ${getFirstName()}` : ''}</h1>
         <p className="text-zinc-500 text-sm mt-1 mb-5">
           Você tem {alertasAtivos.length} ações para hoje, ordenadas por urgência e impacto.
         </p>
+        {erroApi && <p role="alert" className="text-sm text-red-600 -mt-3 mb-4">{erroApi}</p>}
 
         {/* Priority counters */}
         <div className="grid grid-cols-3 gap-4 mb-6">
@@ -253,13 +339,10 @@ export default function Dashboard() {
                       onChange={(e) => setLembCliente(e.target.value)}
                       className="w-full border border-zinc-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none"
                     >
-                      <option>Sem cliente</option>
-                      <option>Carlos Menezes</option>
-                      <option>Helena Duarte</option>
-                      <option>Rodrigo Tavares</option>
-                      <option>Beatriz Lima</option>
-                      <option>Paulo Sampaio</option>
-                      <option>Fernanda Prado</option>
+                      <option value="">Sem cliente</option>
+                      {opcoesCliente.map((c) => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -267,7 +350,7 @@ export default function Dashboard() {
                     <input
                       type="date"
                       value={lembQuando}
-                      min={todayISO}
+                      min={hoje}
                       onChange={(e) => setLembQuando(e.target.value)}
                       className="w-full border border-zinc-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                     />
@@ -296,7 +379,7 @@ export default function Dashboard() {
               <div className="flex flex-col gap-2 mt-2">
                 {lembretes.filter((l) => !l.concluido).map((l) => (
                   <div key={l.id} className="bg-white rounded-lg border border-zinc-100 px-3 py-2.5 flex items-start gap-2">
-                    <input type="checkbox" className="mt-0.5 accent-brand" />
+                    <input type="checkbox" className="mt-0.5 accent-brand" onChange={() => concluirLembrete(l)} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-zinc-800">{l.texto}</p>
                       <p className="text-xs text-zinc-400">
@@ -448,8 +531,8 @@ function NewsCard({ noticia, navigate }) {
       <p className="text-xs text-zinc-500 mb-2 leading-relaxed">{noticia.resumo}</p>
       <p className="text-xs text-zinc-400 mb-2">Fonte: {noticia.fonte}</p>
       <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="text-xs text-zinc-500">{noticia.totalAfetados} clientes afetados</span>
-        <span className="text-xs text-zinc-400">· Tag: {noticia.tags}</span>
+        {noticia.totalAfetados > 0 && <span className="text-xs text-zinc-500">{noticia.totalAfetados} clientes afetados ·</span>}
+        <span className="text-xs text-zinc-400">Tag: {noticia.tags}</span>
       </div>
       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
         {visible.map((c) => (

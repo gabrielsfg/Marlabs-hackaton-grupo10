@@ -25,6 +25,9 @@ namespace Hackaton.Data.Repositories
                 .Include(c => c.Investments)
                 .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken);
 
+        public Task<BankConnection?> GetForUpdateAsync(Guid id, Guid userId, CancellationToken cancellationToken) =>
+            _context.BankConnections.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken);
+
         public Task<bool> ExistsAsync(Guid userId, Guid pluggyItemId, CancellationToken cancellationToken) =>
             _context.BankConnections.AnyAsync(c => c.UserId == userId && c.PluggyItemId == pluggyItemId, cancellationToken);
 

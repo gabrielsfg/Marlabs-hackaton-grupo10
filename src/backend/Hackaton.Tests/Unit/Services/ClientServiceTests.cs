@@ -10,11 +10,15 @@ namespace Hackaton.Tests.Unit.Services
     public class ClientServiceTests
     {
         private readonly Mock<IClientRepository> _clientRepository = new();
+        private readonly Mock<IBankInvestmentRepository> _investmentRepository = new();
         private readonly ClientService _clientService;
 
         public ClientServiceTests()
         {
-            _clientService = new ClientService(_clientRepository.Object);
+            _clientService = new ClientService(_clientRepository.Object, _investmentRepository.Object);
+            _investmentRepository
+                .Setup(r => r.GetTotalsByClientIdsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
         }
 
         [Fact]
@@ -45,6 +49,39 @@ namespace Hackaton.Tests.Unit.Services
             Assert.Equal(advisorId, addedClient!.AdvisorId);
             Assert.Equal("Maria Silva", result.Value.Name);
             Assert.Equal(0, result.Value.AlertCount);
+        }
+
+        [Fact]
+        public async Task GetByIdAsync_WithLinkedPortfolio_ReturnsFinancialAssetsFromInvestments()
+        {
+            var advisorId = Guid.CreateVersion7();
+            var client = new Client { AdvisorId = advisorId, Name = "Maria Silva", FinancialAssets = 1000 };
+            _clientRepository
+                .Setup(r => r.GetByIdAsync(client.Id, advisorId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(client);
+            _investmentRepository
+                .Setup(r => r.GetTotalsByClientIdsAsync(advisorId, It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Dictionary<Guid, decimal> { [client.Id] = 25432.10m });
+
+            var result = await _clientService.GetByIdAsync(advisorId, client.Id, TestContext.Current.CancellationToken);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(25432.10m, result.Value.FinancialAssets);
+        }
+
+        [Fact]
+        public async Task GetByIdAsync_WithoutLinkedPortfolio_KeepsRegisteredFinancialAssets()
+        {
+            var advisorId = Guid.CreateVersion7();
+            var client = new Client { AdvisorId = advisorId, Name = "Maria Silva", FinancialAssets = 1000 };
+            _clientRepository
+                .Setup(r => r.GetByIdAsync(client.Id, advisorId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(client);
+
+            var result = await _clientService.GetByIdAsync(advisorId, client.Id, TestContext.Current.CancellationToken);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(1000m, result.Value.FinancialAssets);
         }
 
         [Fact]

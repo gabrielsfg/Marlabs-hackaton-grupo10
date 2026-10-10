@@ -4,7 +4,6 @@ using Hackaton.Services.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Serilog;
-using Hackaton.Services.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +22,7 @@ builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddPluggySettings(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
-builder.Services.AddScoped<AcoesDoDiaService>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -65,14 +64,6 @@ api.MapGet("/health/db", async (ApplicationDbContext db, CancellationToken ct) =
             ? Results.Ok(new { status = "ok", database = "connected" })
             : Results.Problem("Nao foi possivel conectar ao banco", statusCode: StatusCodes.Status503ServiceUnavailable))
     .WithName("HealthDb");
-
-api.MapGet("/acoes-do-dia/{advisorId:guid}", async (Guid advisorId, AcoesDoDiaService service, CancellationToken ct) =>
-{
-    var acoes = await service.GetAcoesAsync(advisorId, ct);
-    return Results.Ok(acoes);
-})
-.WithName("AcoesDodia")
-.WithSummary("Retorna os cards de ações do dia para um assessor");
 
 app.UseAuthentication();
 app.UseAuthorization();

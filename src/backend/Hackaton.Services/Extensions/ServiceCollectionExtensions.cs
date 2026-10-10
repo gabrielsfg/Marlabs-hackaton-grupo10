@@ -42,6 +42,7 @@ namespace Hackaton.Services.Extensions
             services.AddScoped<IBankConnectionService, BankConnectionService>();
             services.AddScoped<IBankInvestmentService, BankInvestmentService>();
             services.AddScoped<IReminderService, ReminderService>();
+            services.AddScoped<IDailyActionService, DailyActionService>();
 
             return services;
         }

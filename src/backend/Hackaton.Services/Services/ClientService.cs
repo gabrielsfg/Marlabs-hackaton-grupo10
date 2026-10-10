@@ -11,16 +11,20 @@ namespace Hackaton.Services.Services
     public class ClientService : IClientService
     {
         private readonly IClientRepository _clientRepository;
+        private readonly IBankInvestmentRepository _investmentRepository;
 
-        public ClientService(IClientRepository clientRepository)
+        public ClientService(IClientRepository clientRepository, IBankInvestmentRepository investmentRepository)
         {
             _clientRepository = clientRepository;
+            _investmentRepository = investmentRepository;
         }
 
         public async Task<Result<List<ClientResponse>>> ListAsync(Guid advisorId, string? search, string? profile, bool onlyWithAlerts, CancellationToken cancellationToken)
         {
             var clients = await _clientRepository.ListByAdvisorAsync(advisorId, search, profile, onlyWithAlerts, cancellationToken);
-            return clients.Adapt<List<ClientResponse>>();
+            var responses = clients.Adapt<List<ClientResponse>>();
+            await ApplyLinkedInvestmentsAsync(advisorId, responses, cancellationToken);
+            return responses;
         }
 
         public async Task<Result<ClientResponse>> GetByIdAsync(Guid advisorId, Guid id, CancellationToken cancellationToken)
@@ -29,7 +33,9 @@ namespace Hackaton.Services.Services
             if (client is null)
                 return Error.NotFound("Client.NotFound", "Cliente nao encontrado");
 
-            return client.Adapt<ClientResponse>();
+            var response = client.Adapt<ClientResponse>();
+            await ApplyLinkedInvestmentsAsync(advisorId, [response], cancellationToken);
+            return response;
         }
 
         public async Task<Result<ClientResponse>> CreateAsync(Guid advisorId, CreateClientRequest request, CancellationToken cancellationToken)
@@ -57,6 +63,22 @@ namespace Hackaton.Services.Services
             await _clientRepository.SaveChangesAsync(cancellationToken);
 
             return client.Adapt<ClientResponse>();
+        }
+
+        // Com carteira vinculada, o patrimonio financeiro vem da soma das posicoes; sem carteira, fica o valor cadastrado
+        private async Task ApplyLinkedInvestmentsAsync(Guid advisorId, List<ClientResponse> clients, CancellationToken cancellationToken)
+        {
+            if (clients.Count == 0)
+                return;
+
+            var totals = await _investmentRepository.GetTotalsByClientIdsAsync(
+                advisorId, clients.Select(c => c.Id).ToList(), cancellationToken);
+
+            foreach (var client in clients)
+            {
+                if (totals.TryGetValue(client.Id, out var total))
+                    client.FinancialAssets = total;
+            }
         }
 
         public async Task<Result> DeleteAsync(Guid advisorId, Guid id, CancellationToken cancellationToken)

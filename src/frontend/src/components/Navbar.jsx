@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { clearSession, getSessionUser, isDemoSession } from '../lib/session'
 
 export default function Navbar() {
   const location = useLocation()
@@ -6,8 +7,7 @@ export default function Navbar() {
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/')
   const handleLogout = () => {
-    sessionStorage.removeItem('accessToken')
-    sessionStorage.removeItem('user')
+    clearSession()
     navigate('/')
   }
 
@@ -26,7 +26,10 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
-        <span className="text-sm text-zinc-300">Rafael Mendes</span>
+        {isDemoSession() && (
+          <span className="text-xs bg-brand text-zinc-900 font-semibold px-2 py-0.5 rounded">Demonstração</span>
+        )}
+        <span className="text-sm text-zinc-300">{getSessionUser()?.name}</span>
         <button
           onClick={handleLogout}
           className="border border-zinc-600 text-sm px-3 py-1 rounded hover:bg-zinc-700 transition-colors"

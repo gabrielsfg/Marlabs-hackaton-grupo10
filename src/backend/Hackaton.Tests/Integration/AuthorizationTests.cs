@@ -28,6 +28,10 @@ namespace Hackaton.Tests.Integration
         [InlineData("POST", "/api/bankconnections")]
         [InlineData("POST", "/api/bankconnections/0199d5a0-0000-7000-8000-000000000000/sync")]
         [InlineData("GET", "/api/bankinvestments")]
+        [InlineData("GET", "/api/dailyactions")]
+        [InlineData("GET", "/api/reminders")]
+        [InlineData("PUT", "/api/bankconnections/0199d5a0-0000-7000-8000-000000000000/client")]
+        [InlineData("GET", "/api/clients/0199d5a0-0000-7000-8000-000000000000/investments")]
         public async Task BankEndpoints_WithoutToken_ReturnUnauthorized(string method, string url)
         {
             using var request = new HttpRequestMessage(new HttpMethod(method), url);
