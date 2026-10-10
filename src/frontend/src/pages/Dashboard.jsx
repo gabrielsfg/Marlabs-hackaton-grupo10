@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useGoogleLogin } from '@react-oauth/google'
 import Navbar from '../components/Navbar'
 import { alertas, lembretes as lembretesIniciais, noticias, formatBRL } from '../data/mockData'
-import { criarEventoCalendario } from '../utils/googleCalendar'
+import { criarEventoCalendario, hojeLocalISO } from '../utils/googleCalendar'
 
 const PRIORIDADE_STYLE = {
   Alta: 'bg-red-100 text-red-700',
@@ -16,8 +16,6 @@ const PRIORIDADE_BORDER = {
   Média: 'border-yellow-200',
   Baixa: 'border-sky-200',
 }
-
-const todayISO = new Date().toISOString().split('T')[0]
 
 function formatarData(dateStr) {
   if (!dateStr) return '—'
@@ -33,7 +31,9 @@ export default function Dashboard() {
   const [lembretes, setLembretes] = useState(lembretesIniciais)
   const [novoLembrete, setNovoLembrete] = useState('')
   const [lembCliente, setLembCliente] = useState('Sem cliente')
-  const [lembQuando, setLembQuando] = useState(todayISO)
+  // Data de hoje no fuso local, calculada ao abrir a tela
+  const [hoje] = useState(hojeLocalISO)
+  const [lembQuando, setLembQuando] = useState(hoje)
 
   // Google Calendar
   const [googleToken, setGoogleToken] = useState(null)
@@ -93,7 +93,7 @@ export default function Dashboard() {
   })
 
   const addLembrete = async () => {
-    if (!novoLembrete.trim()) return
+    if (!novoLembrete.trim() || !lembQuando) return
     const lembrete = {
       id: Date.now(),
       texto: novoLembrete,
@@ -103,7 +103,7 @@ export default function Dashboard() {
     }
     setLembretes((prev) => [...prev, lembrete])
     setNovoLembrete('')
-    setLembQuando(todayISO)
+    setLembQuando(hojeLocalISO())
 
     if (googleToken) {
       await enviarParaCalendario(googleToken, lembrete)
@@ -241,7 +241,7 @@ export default function Dashboard() {
                     <input
                       type="date"
                       value={lembQuando}
-                      min={todayISO}
+                      min={hoje}
                       onChange={(e) => setLembQuando(e.target.value)}
                       className="w-full border border-zinc-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                     />

@@ -1,4 +1,3 @@
-
 export const assessor = { nome: "Rafael Mendes" }
 
 export const clientes = [

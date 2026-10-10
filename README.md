@@ -91,3 +91,27 @@ npm run dev
 ```powershell
 dotnet publish src/backend/Hackaton.Api -c Release -o publish
 ```
+
+## Frontend: IA e Google Agenda
+
+O frontend usa duas integracoes que precisam de chaves num arquivo `src/frontend/.env` (ja ignorado pelo Git,
+nunca commite). Pegue os valores com o time em privado:
+
+```env
+VITE_GOOGLE_CLIENT_ID=seu-client-id.apps.googleusercontent.com
+VITE_GROQ_API_KEY=sua-chave-da-groq
+```
+
+| Variavel | Para que serve |
+|----------|----------------|
+| `VITE_GOOGLE_CLIENT_ID` | Login com Google para criar eventos no Google Agenda (escopo `calendar.events`) |
+| `VITE_GROQ_API_KEY` | IA (Groq) que extrai os dados do cliente a partir de uma transcricao `.txt`/`.md` |
+
+Depois de criar ou alterar o `.env`, reinicie o `npm run dev` (o Vite so le o arquivo ao iniciar).
+
+- **Google Agenda:** no cenario da simulacao todos os assessores usam conta Gmail. Lembretes do Dashboard viram
+  eventos de dia inteiro na data escolhida; datas do cliente (aniversarios etc.) viram eventos anuais de dia inteiro.
+- **Atencao, chave da Groq:** a chamada a IA e feita direto do navegador, entao a `VITE_GROQ_API_KEY` vai embutida no
+  JavaScript e qualquer pessoa com o DevTools consegue ve-la; os dados da transcricao tambem vao do navegador para a Groq.
+  Decisao consciente para a demo do hackathon: use uma chave so para o projeto, nao publique o site e revogue a chave
+  no painel da Groq ao final. Para producao, a chamada deve passar por um endpoint da API com a chave no user-secrets.
