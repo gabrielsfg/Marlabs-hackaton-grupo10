@@ -157,6 +157,68 @@ namespace Hackaton.Data.Migrations
                     b.ToTable("BankInvestments", (string)null);
                 });
 
+            modelBuilder.Entity("Hackaton.Domain.Entities.Client", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdvisorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AlertCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Cpf")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<decimal>("FinancialAssets")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("NextDate")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<decimal>("OutsideInstitutionPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<decimal>("PhysicalAssets")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Profile")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdvisorId");
+
+                    b.ToTable("Clients", (string)null);
+                });
+
             modelBuilder.Entity("Hackaton.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -223,6 +285,15 @@ namespace Hackaton.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("BankConnection");
+                });
+
+            modelBuilder.Entity("Hackaton.Domain.Entities.Client", b =>
+                {
+                    b.HasOne("Hackaton.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("AdvisorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Hackaton.Domain.Entities.BankConnection", b =>

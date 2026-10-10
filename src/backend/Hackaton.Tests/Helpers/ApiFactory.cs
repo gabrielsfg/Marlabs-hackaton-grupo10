@@ -8,12 +8,12 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Hackaton.Tests.Helpers
 {
-    // Key fixa de teste para nao depender do user-secrets de quem roda os testes
     public class ApiFactory : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             var databaseName = $"HackatonTests-{Guid.NewGuid()}";
+            builder.UseEnvironment("Testing");
             builder.UseSetting("Jwt:Key", "chave-de-teste-com-pelo-menos-32-caracteres");
             builder.ConfigureServices(services =>
             {

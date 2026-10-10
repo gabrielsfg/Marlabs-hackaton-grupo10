@@ -24,6 +24,7 @@ namespace Hackaton.Services.Extensions
             TypeAdapterConfig.GlobalSettings.Scan(assembly);
 
             services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IClientRepository, ClientRepository>();
             services.AddScoped<IBankConnectionRepository, BankConnectionRepository>();
             services.AddScoped<IBankInvestmentRepository, BankInvestmentRepository>();
 
@@ -36,6 +37,7 @@ namespace Hackaton.Services.Extensions
             services.AddSingleton<ITokenService, TokenService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IClientService, ClientService>();
             services.AddScoped<IBankConnectionService, BankConnectionService>();
             services.AddScoped<IBankInvestmentService, BankInvestmentService>();
 
