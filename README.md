@@ -59,6 +59,34 @@ A chave de assinatura nao fica no `appsettings`. Cada um gera a sua localmente, 
 dotnet user-secrets set "Jwt:Key" "$([Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48)))" --project src/backend/Hackaton.Api
 ```
 
+## Open Finance (Pluggy)
+
+Usamos o plano gratuito (**Meu Pluggy**) so para os **investimentos** (acoes, ETFs, renda fixa...). As contas sao
+conectadas no site do Meu Pluggy e ligadas a aplicacao no Dashboard pelo conector **MeuPluggy**; a API so **le** os
+dados e o backend grava no nosso banco. O itemId e cadastrado na mao (no produto real o assessor pediria o
+consentimento ao cliente pelo Pluggy Connect, que e do plano pago).
+
+1. Credenciais da aplicacao (Dashboard > Aplicacoes), uma vez por maquina:
+
+   ```powershell
+   dotnet user-secrets set "Pluggy:ClientId" "SEU_CLIENT_ID" --project src/backend/Hackaton.Api
+   dotnet user-secrets set "Pluggy:ClientSecret" "SEU_CLIENT_SECRET" --project src/backend/Hackaton.Api
+   ```
+
+   Nao precisa da API key: o SDK faz o `POST /auth` sozinho (e o backend renova antes das 2h de validade).
+
+2. Fluxo (todas as rotas exigem o token do login):
+
+   | Rota | O que faz |
+   |------|-----------|
+   | `POST /api/bankconnections` `{ "itemId": "..." }` | Liga um item da Pluggy (Dashboard > Demo > Itens Conectados) ao usuario logado |
+   | `GET /api/bankconnections` | Lista as conexoes do usuario |
+   | `POST /api/bankconnections/{id}/sync` | Puxa os investimentos da Pluggy e grava/atualiza no banco |
+   | `GET /api/bankinvestments` | Carteira salva (acoes, ETFs, renda fixa...) do ultimo sync |
+
+   A carteira salva espelha a atual: posicoes vendidas/resgatadas (que a Pluggy nao retorna mais) sao removidas.
+   A Pluggy so atualiza os dados 1x a cada 24h.
+
 ## Rodando em desenvolvimento
 
 ### Visual Studio (Windows)

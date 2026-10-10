@@ -21,15 +21,32 @@ namespace Hackaton.Services.Helpers
 
         public bool Verify(string password, string passwordHash)
         {
-            var parts = passwordHash.Split('.');
-            if (parts.Length != 3 || !int.TryParse(parts[0], out var iterations))
+            if (string.IsNullOrEmpty(passwordHash))
                 return false;
 
-            var salt = Convert.FromBase64String(parts[1]);
-            var expectedHash = Convert.FromBase64String(parts[2]);
-            var actualHash = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, Algorithm, expectedHash.Length);
+            try
+            {
+                var parts = passwordHash.Split('.');
+                if (parts.Length != 3 || !int.TryParse(parts[0], out var iterations) || iterations <= 0)
+                    return false;
 
-            return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
+                var salt = Convert.FromBase64String(parts[1]);
+                var expectedHash = Convert.FromBase64String(parts[2]);
+                if (salt.Length == 0 || expectedHash.Length == 0)
+                    return false;
+
+                var actualHash = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, Algorithm, expectedHash.Length);
+
+                return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
         }
     }
 }
