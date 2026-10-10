@@ -4,6 +4,7 @@ import { useGoogleLogin } from '@react-oauth/google'
 import Navbar from '../components/Navbar'
 import { alertas, lembretes as lembretesIniciais, noticias, formatBRL } from '../data/mockData'
 import { criarEventoCalendario, hojeLocalISO } from '../utils/googleCalendar'
+import { getFirstName, isDemoSession } from '../lib/session'
 
 const PRIORIDADE_STYLE = {
   Alta: 'bg-red-100 text-red-700',
@@ -23,12 +24,24 @@ function formatarData(dateStr) {
   return `${d}/${m}/${y}`
 }
 
+// Alertas, lembretes e vinculos das noticias ainda nao tem API: na demo vem do mockData; na conta real comecam vazios
+function dadosDoDashboard() {
+  if (isDemoSession()) return { alertas, lembretes: lembretesIniciais, noticias }
+  return {
+    alertas: [],
+    lembretes: [],
+    noticias: noticias.map((n) => ({ ...n, clientesAfetados: [], totalAfetados: 0 })),
+  }
+}
+
 export default function Dashboard() {
+  const [dados] = useState(dadosDoDashboard)
+  const { alertas, noticias } = dados
   const navigate = useNavigate()
   const [filtroPrioridade, setFiltroPrioridade] = useState('Todas')
   const [filtroTipo, setFiltroTipo] = useState('Todos')
   const [concluidos, setConcluidos] = useState([])
-  const [lembretes, setLembretes] = useState(lembretesIniciais)
+  const [lembretes, setLembretes] = useState(dados.lembretes)
   const [novoLembrete, setNovoLembrete] = useState('')
   const [lembCliente, setLembCliente] = useState('Sem cliente')
   // Data de hoje no fuso local, calculada ao abrir a tela
@@ -140,7 +153,7 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-6 py-6">
         <p className="text-zinc-500 text-sm mb-0.5">{todayCap}</p>
-        <h1 className="text-3xl font-bold text-zinc-900">Bom dia, Rafael</h1>
+        <h1 className="text-3xl font-bold text-zinc-900">Bom dia{getFirstName() ? `, ${getFirstName()}` : ''}</h1>
         <p className="text-zinc-500 text-sm mt-1 mb-5">
           Você tem {alertasAtivos.length} ações para hoje, ordenadas por urgência e impacto.
         </p>
@@ -422,8 +435,8 @@ function NewsCard({ noticia, navigate }) {
       <p className="text-xs text-zinc-500 mb-2 leading-relaxed">{noticia.resumo}</p>
       <p className="text-xs text-zinc-400 mb-2">Fonte: {noticia.fonte}</p>
       <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="text-xs text-zinc-500">{noticia.totalAfetados} clientes afetados</span>
-        <span className="text-xs text-zinc-400">· Tag: {noticia.tags}</span>
+        {noticia.totalAfetados > 0 && <span className="text-xs text-zinc-500">{noticia.totalAfetados} clientes afetados ·</span>}
+        <span className="text-xs text-zinc-400">Tag: {noticia.tags}</span>
       </div>
       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
         {visible.map((c) => (

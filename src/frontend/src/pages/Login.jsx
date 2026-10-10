@@ -1,23 +1,31 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login as loginRequest } from '../features/auth/api'
+import { DEMO_CREDENTIALS, isDemoCredentials, startDemoSession, startSession } from '../lib/session'
 
 export default function Login() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [senha, setSenha] = useState('')
+  // Abre preenchido com a conta de demonstracao (dados do mockData); qualquer outra conta usa a API
+  const [email, setEmail] = useState(DEMO_CREDENTIALS.email)
+  const [senha, setSenha] = useState(DEMO_CREDENTIALS.password)
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    if (isDemoCredentials(email, senha)) {
+      startDemoSession()
+      navigate('/dashboard')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
       const response = await loginRequest({ email, password: senha })
-      sessionStorage.setItem('accessToken', response.accessToken)
-      sessionStorage.setItem('user', JSON.stringify(response.user))
+      startSession(response)
       navigate('/dashboard')
     } catch (requestError) {
       setError(requestError.response?.data?.detail ?? 'Não foi possível conectar ao servidor. Tente novamente.')
@@ -54,7 +62,11 @@ export default function Login() {
       <div className="flex-1 bg-stone-100 flex items-center justify-center">
         <div className="bg-white rounded-2xl shadow-sm p-10 w-full max-w-md mx-8">
           <h2 className="text-2xl font-bold text-zinc-900 mb-1">Entrar</h2>
-          <p className="text-zinc-500 text-sm mb-6">Acesse com sua conta de assessor.</p>
+          <p className="text-zinc-500 text-sm mb-3">Acesse com sua conta de assessor.</p>
+          <p className="text-xs text-zinc-500 bg-zinc-50 border border-zinc-100 rounded-lg px-3 py-2 mb-6">
+            Já preenchido com a <strong>conta de demonstração</strong> (dados fictícios). Para ver os seus dados reais,
+            entre com a sua conta.
+          </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>

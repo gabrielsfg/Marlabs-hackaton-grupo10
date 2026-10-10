@@ -7,8 +7,9 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Cell,
 } from 'recharts'
 import Navbar from '../components/Navbar'
-import { clientes, alertas, formatBRL } from '../data/mockData'
-import { getClient } from '../features/clients/api'
+import { clientes, alertas, formatBRL, formatBRLDecimal } from '../data/mockData'
+import { getClient, getClientInvestments } from '../features/clients/api'
+import { investimentosParaPosicoes, vencimentosProximos12Meses } from '../utils/investments'
 
 const TIPO_CORES = {
   CDB: '#1C1C1C',
@@ -18,7 +19,36 @@ const TIPO_CORES = {
   Ações: '#3B82F6',
   Debênture: '#8B5CF6',
   LCA: '#10B981',
+  ETF: '#06B6D4',
+  FII: '#EC4899',
+  'Renda fixa': '#64748B',
+  Previdência: '#A855F7',
+  COE: '#EAB308',
+  Outros: '#D4D4D8',
 }
+
+const COLUNAS_CUSTODIA = [
+  { titulo: 'Ativo' },
+  { titulo: 'Qtd.', numerica: true },
+  { titulo: 'Preço unit.', numerica: true },
+  { titulo: 'Investido', numerica: true },
+  { titulo: 'Valor bruto', numerica: true },
+  { titulo: 'Valor líquido', numerica: true },
+  { titulo: 'Vencimento' },
+  { titulo: 'FGC' },
+]
+
+const formatarQuantidade = (v) =>
+  v == null ? '—' : new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 6 }).format(v)
+
+// Soma um campo das posicoes; null quando nenhuma posicao informa o campo (ex: dados de demonstracao)
+function somaOuNulo(posicoes, campo) {
+  const valores = posicoes.map((p) => p[campo]).filter((v) => v != null)
+  return valores.length ? valores.reduce((total, v) => total + v, 0) : null
+}
+
+// Total da coluna "Valor liquido": soma o que cada linha exibe (liquido ou, sem ele, o valor da posicao)
+const totalLiquido = (posicoes) => posicoes.reduce((total, p) => total + (p.valorLiquido ?? p.valor ?? 0), 0)
 
 const BEM_STYLE = {
   Imóvel: 'bg-amber-100 text-amber-700',
@@ -49,14 +79,18 @@ export default function ClientProfile() {
   const [googleToken, setGoogleToken] = useState(null)
   const [calendarStatus, setCalendarStatus] = useState(null)
   const [timeline, setTimeline] = useState([])
+  // Posicoes das carteiras (Pluggy) vinculadas ao cliente; vazio se nao houver vinculo
+  const [investimentos, setInvestimentos] = useState([])
 
   useEffect(() => {
     let cancelled = false
 
-    getClient(id)
-      .then((data) => {
+    // Sem os investimentos o perfil continua abrindo (so sem as posicoes reais)
+    Promise.all([getClient(id), getClientInvestments(id).catch(() => [])])
+      .then(([data, investments]) => {
         if (cancelled) return
         setClient(data)
+        setInvestimentos(investments)
         setError('')
         setBens(mockClient?.bens || [])
         setTimeline(mockClient?.timeline || [])
@@ -148,6 +182,13 @@ export default function ClientProfile() {
     foraInstituicao: client.outsideInstitutionPercentage,
     alertas: client.alertCount,
     proximaData: client.nextDate,
+  }
+
+  // Com carteira vinculada, posicoes e vencimentos vem do Open Finance; o patrimonio financeiro ja vem somado da API
+  const temCarteira = investimentos.length > 0
+  if (temCarteira) {
+    cliente.posicoes = investimentosParaPosicoes(investimentos)
+    cliente.vencimentos12m = vencimentosProximos12Meses(investimentos)
   }
 
   const alertasCliente = mockClient ? alertas.filter((a) => a.clienteId === mockClient.id) : []
@@ -263,7 +304,7 @@ export default function ClientProfile() {
         </div>
       )}
 
-      <div className="max-w-5xl mx-auto px-6 py-6">
+      <div className="max-w-6xl mx-auto px-6 py-6">
         <button onClick={() => navigate('/clientes')} className="text-sm text-zinc-500 hover:text-zinc-700 mb-4 flex items-center gap-1">
           ← Voltar para clientes
         </button>
@@ -337,38 +378,61 @@ export default function ClientProfile() {
         <div className="bg-white rounded-2xl border border-zinc-100 p-5 mb-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-zinc-900">Custódia consolidada</h2>
-            <span className="text-xs text-zinc-400">Posições de todas as instituições · dados simulados no padrão do Open Finance</span>
+            <span className="text-xs text-zinc-400">
+              {temCarteira
+                ? `Posições de todas as instituições · dados do Open Finance (${[...new Set(investimentos.map((i) => i.institutionName).filter(Boolean))].join(', ') || 'Pluggy'})`
+                : 'Posições de todas as instituições · dados simulados no padrão do Open Finance'}
+            </span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100">
-                  {['Ativo', 'Tipo', 'Emissor', 'Instituição', 'Valor', 'Indexador e taxa', 'Vencimento', 'FGC'].map((h) => (
-                    <th key={h} className="text-left text-xs text-zinc-400 font-medium pb-2 pr-4">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {cliente.posicoes.map((p, i) => (
-                  <tr key={i} className={`border-b border-zinc-50 ${p.fgcAlerta ? 'bg-red-50' : ''}`}>
-                    <td className="py-2 pr-4 font-medium text-zinc-800">{p.ativo}</td>
-                    <td className="py-2 pr-4 text-zinc-600">{p.tipo}</td>
-                    <td className="py-2 pr-4 text-zinc-600">{p.emissor}</td>
-                    <td className="py-2 pr-4 text-zinc-600">{p.instituicao}</td>
-                    <td className="py-2 pr-4 text-zinc-800 font-medium">{formatBRL(p.valor)}</td>
-                    <td className="py-2 pr-4 text-zinc-600">{p.indexador}</td>
-                    <td className={`py-2 pr-4 ${p.vencimentoProximo ? 'text-red-500 font-medium' : 'text-zinc-600'}`}>{p.vencimento}</td>
-                    <td className="py-2">{p.fgc ? <span className="text-green-600">Sim</span> : <span className="text-zinc-400">Não</span>}</td>
-                  </tr>
+          {/* Tipo, emissor, instituicao e indexador ficam sob o nome do ativo para todas as colunas caberem sem rolagem */}
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-zinc-100">
+                {COLUNAS_CUSTODIA.map(({ titulo, numerica }) => (
+                  <th key={titulo} className={`text-xs text-zinc-400 font-medium pb-2 px-2 first:pl-0 last:pr-0 whitespace-nowrap ${numerica ? 'text-right' : 'text-left'}`}>
+                    {titulo}
+                  </th>
                 ))}
-                <tr className="border-t border-zinc-200">
-                  <td colSpan={4} className="py-2 font-semibold text-zinc-800">Total financeiro</td>
-                  <td className="py-2 font-bold text-zinc-900">{formatBRL(cliente.patrimonioFinanceiro)}</td>
-                  <td colSpan={3} />
-                </tr>
-              </tbody>
-            </table>
-          </div>
+              </tr>
+            </thead>
+            <tbody>
+              {cliente.posicoes.map((p, i) => {
+                const liquido = p.valorLiquido ?? p.valor
+                const variacao = p.valorInvestido > 0 ? (liquido - p.valorInvestido) / p.valorInvestido : null
+                const detalhes = [p.tipo, p.indexador !== '—' ? p.indexador : null].filter(Boolean).join(' · ')
+                return (
+                  <tr key={i} className={`border-b border-zinc-50 align-top ${p.fgcAlerta ? 'bg-red-50' : ''}`}>
+                    <td className="py-2 pr-2">
+                      <p className="font-medium text-zinc-800">{p.ativo}</p>
+                      <p className="text-xs text-zinc-500">{detalhes}</p>
+                      <p className="text-xs text-zinc-400">{[...new Set([p.emissor, p.instituicao])].filter((v) => v && v !== '—').join(' · ')}</p>
+                    </td>
+                    <td className="py-2 px-2 text-right text-zinc-600 whitespace-nowrap">{formatarQuantidade(p.quantidade)}</td>
+                    <td className="py-2 px-2 text-right text-zinc-600 whitespace-nowrap">{formatBRLDecimal(p.precoUnitario)}</td>
+                    <td className="py-2 px-2 text-right text-zinc-600 whitespace-nowrap">{formatBRLDecimal(p.valorInvestido)}</td>
+                    <td className="py-2 px-2 text-right text-zinc-600 whitespace-nowrap">{formatBRLDecimal(p.valorBruto)}</td>
+                    <td className="py-2 px-2 text-right whitespace-nowrap">
+                      <p className="font-medium text-zinc-800">{formatBRLDecimal(liquido)}</p>
+                      {variacao != null && (
+                        <p className={`text-xs ${variacao >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {variacao >= 0 ? '+' : ''}{(variacao * 100).toFixed(2).replace('.', ',')}%
+                        </p>
+                      )}
+                    </td>
+                    <td className={`py-2 px-2 whitespace-nowrap ${p.vencimentoProximo ? 'text-red-500 font-medium' : 'text-zinc-600'}`}>{p.vencimento}</td>
+                    <td className="py-2 pl-2">{p.fgc ? <span className="text-green-600">Sim</span> : <span className="text-zinc-400">Não</span>}</td>
+                  </tr>
+                )
+              })}
+              <tr className="border-t border-zinc-200">
+                <td colSpan={3} className="py-2 font-semibold text-zinc-800">Total financeiro</td>
+                <td className="py-2 px-2 text-right font-medium text-zinc-700 whitespace-nowrap">{formatBRLDecimal(somaOuNulo(cliente.posicoes, 'valorInvestido'))}</td>
+                <td className="py-2 px-2 text-right font-medium text-zinc-700 whitespace-nowrap">{formatBRLDecimal(somaOuNulo(cliente.posicoes, 'valorBruto'))}</td>
+                <td className="py-2 px-2 text-right font-bold text-zinc-900 whitespace-nowrap">{formatBRLDecimal(totalLiquido(cliente.posicoes))}</td>
+                <td colSpan={2} />
+              </tr>
+            </tbody>
+          </table>
           <p className="text-xs text-zinc-400 mt-2">
             Linhas destacadas contribuem para o alerta de FGC. Debêntures, fundos, ações e Tesouro não têm cobertura do FGC.
           </p>

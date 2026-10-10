@@ -8,6 +8,8 @@ namespace Hackaton.Domain.Interfaces.Repositories
 
         // Rastreado e com os investimentos carregados, para o sync atualizar no lugar
         Task<BankConnection?> GetForSyncAsync(Guid id, Guid userId, CancellationToken cancellationToken);
+        // Rastreado e sem includes, para alteracoes simples (ex: vincular a um cliente)
+        Task<BankConnection?> GetForUpdateAsync(Guid id, Guid userId, CancellationToken cancellationToken);
         Task<bool> ExistsAsync(Guid userId, Guid pluggyItemId, CancellationToken cancellationToken);
         Task AddAsync(BankConnection connection, CancellationToken cancellationToken);
         Task SaveChangesAsync(CancellationToken cancellationToken);

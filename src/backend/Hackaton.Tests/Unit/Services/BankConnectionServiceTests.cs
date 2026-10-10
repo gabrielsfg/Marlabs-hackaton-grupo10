@@ -18,6 +18,7 @@ namespace Hackaton.Tests.Unit.Services
         private static readonly DateTimeOffset Now = new(2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
 
         private readonly Mock<IBankConnectionRepository> _connectionRepository = new();
+        private readonly Mock<IClientRepository> _clientRepository = new();
         private readonly Mock<IBankInvestmentRepository> _investmentRepository = new();
         private readonly Mock<IPluggyGateway> _pluggy = new();
         private readonly BankConnectionService _service;
@@ -29,6 +30,7 @@ namespace Hackaton.Tests.Unit.Services
         {
             _service = new BankConnectionService(
                 _connectionRepository.Object,
+                _clientRepository.Object,
                 _investmentRepository.Object,
                 _pluggy.Object,
                 new FixedTimeProvider(Now),
@@ -90,6 +92,59 @@ namespace Hackaton.Tests.Unit.Services
             Assert.Equal("MeuPluggy", saved.ConnectorName);
             Assert.Equal("XP", saved.InstitutionName);
             Assert.Equal("UPDATED", saved.Status);
+        }
+
+        [Fact]
+        public async Task LinkClientAsync_ClientOfSameAdvisor_LinksConnection()
+        {
+            var connection = GivenConnectionForUpdate();
+            var client = new Client { AdvisorId = _userId, Name = "Maria Silva" };
+            _clientRepository
+                .Setup(r => r.GetByIdAsync(client.Id, _userId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(client);
+
+            var result = await _service.LinkClientAsync(_userId, connection.Id,
+                new LinkBankConnectionClientRequest { ClientId = client.Id }, TestContext.Current.CancellationToken);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(client.Id, connection.ClientId);
+            Assert.Equal(client.Id, result.Value.ClientId);
+            _connectionRepository.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task LinkClientAsync_ClientOfAnotherAdvisor_ReturnsNotFoundAndKeepsConnection()
+        {
+            var connection = GivenConnectionForUpdate();
+
+            var result = await _service.LinkClientAsync(_userId, connection.Id,
+                new LinkBankConnectionClientRequest { ClientId = Guid.CreateVersion7() }, TestContext.Current.CancellationToken);
+
+            Assert.Equal("Client.NotFound", result.Error!.Code);
+            Assert.Null(connection.ClientId);
+            _connectionRepository.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task LinkClientAsync_NullClient_UnlinksConnection()
+        {
+            var connection = GivenConnectionForUpdate();
+            connection.ClientId = Guid.CreateVersion7();
+
+            var result = await _service.LinkClientAsync(_userId, connection.Id,
+                new LinkBankConnectionClientRequest { ClientId = null }, TestContext.Current.CancellationToken);
+
+            Assert.True(result.IsSuccess);
+            Assert.Null(connection.ClientId);
+        }
+
+        [Fact]
+        public async Task LinkClientAsync_ConnectionOfAnotherUser_ReturnsNotFound()
+        {
+            var result = await _service.LinkClientAsync(_userId, Guid.CreateVersion7(),
+                new LinkBankConnectionClientRequest { ClientId = Guid.CreateVersion7() }, TestContext.Current.CancellationToken);
+
+            Assert.Equal("BankConnection.NotFound", result.Error!.Code);
         }
 
         [Fact]
@@ -172,6 +227,15 @@ namespace Hackaton.Tests.Unit.Services
             Assert.Equal("Pluggy.Unauthorized", result.Error!.Code);
             Assert.Null(connection.LastSyncedAt);
             _connectionRepository.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        private BankConnection GivenConnectionForUpdate()
+        {
+            var connection = new BankConnection { UserId = _userId, PluggyItemId = _itemId };
+            _connectionRepository
+                .Setup(r => r.GetForUpdateAsync(connection.Id, _userId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(connection);
+            return connection;
         }
 
         private BankConnection GivenConnection()

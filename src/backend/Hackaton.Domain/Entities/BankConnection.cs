@@ -6,6 +6,9 @@ namespace Hackaton.Domain.Entities
     public class BankConnection : BaseEntity
     {
         public Guid UserId { get; set; }
+
+        // Cliente dono desta carteira (opcional): um cliente pode ter varias carteiras, cada carteira tem no maximo um cliente
+        public Guid? ClientId { get; set; }
         public Guid PluggyItemId { get; set; }
         public string ConnectorName { get; set; } = string.Empty;
 

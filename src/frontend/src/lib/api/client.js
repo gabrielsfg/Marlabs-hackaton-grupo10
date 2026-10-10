@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getAccessToken } from '../session'
 
 export const api = axios.create({
   baseURL: '/api',
@@ -6,7 +7,7 @@ export const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const accessToken = sessionStorage.getItem('accessToken')
+  const accessToken = getAccessToken()
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
   }
