@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useGoogleLogin } from '@react-oauth/google'
 import Navbar from '../components/Navbar'
 import { alertas, lembretes as lembretesIniciais, noticias, formatBRL } from '../data/mockData'
+import { criarEventoCalendario, hojeLocalISO } from '../utils/googleCalendar'
 
 const PRIORIDADE_STYLE = {
   Alta: 'bg-red-100 text-red-700',
@@ -15,6 +17,12 @@ const PRIORIDADE_BORDER = {
   Baixa: 'border-sky-200',
 }
 
+function formatarData(dateStr) {
+  if (!dateStr) return '—'
+  const [y, m, d] = dateStr.split('-')
+  return `${d}/${m}/${y}`
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const [filtroPrioridade, setFiltroPrioridade] = useState('Todas')
@@ -23,26 +31,86 @@ export default function Dashboard() {
   const [lembretes, setLembretes] = useState(lembretesIniciais)
   const [novoLembrete, setNovoLembrete] = useState('')
   const [lembCliente, setLembCliente] = useState('Sem cliente')
-  const [lembQuando, setLembQuando] = useState('Hoje')
+  // Data de hoje no fuso local, calculada ao abrir a tela
+  const [hoje] = useState(hojeLocalISO)
+  const [lembQuando, setLembQuando] = useState(hoje)
+
+  // Google Calendar
+  const [googleToken, setGoogleToken] = useState(null)
+  const [calendarStatus, setCalendarStatus] = useState(null) // null | 'loading' | 'success' | 'error'
+  const pendingRef = useRef(null)
 
   const today = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())
   const todayCap = today.charAt(0).toUpperCase() + today.slice(1)
 
   const alertasAtivos = alertas.filter((a) => !concluidos.includes(a.id))
-
   const filtrados = alertasAtivos.filter((a) => {
     const okP = filtroPrioridade === 'Todas' || a.prioridade === filtroPrioridade
     const okT = filtroTipo === 'Todos' || a.tipo === filtroTipo
     return okP && okT
   })
 
-  const counts = { Alta: alertasAtivos.filter((a) => a.prioridade === 'Alta').length, Média: alertasAtivos.filter((a) => a.prioridade === 'Média').length, Baixa: alertasAtivos.filter((a) => a.prioridade === 'Baixa').length }
-  const countsTipo = { FGC: alertasAtivos.filter((a) => a.tipo === 'FGC').length, Vencimento: alertasAtivos.filter((a) => a.tipo === 'Vencimento').length, Objetivo: alertasAtivos.filter((a) => a.tipo === 'Objetivo').length }
+  const counts = {
+    Alta: alertasAtivos.filter((a) => a.prioridade === 'Alta').length,
+    Média: alertasAtivos.filter((a) => a.prioridade === 'Média').length,
+    Baixa: alertasAtivos.filter((a) => a.prioridade === 'Baixa').length,
+  }
+  const countsTipo = {
+    FGC: alertasAtivos.filter((a) => a.tipo === 'FGC').length,
+    Vencimento: alertasAtivos.filter((a) => a.tipo === 'Vencimento').length,
+    Objetivo: alertasAtivos.filter((a) => a.tipo === 'Objetivo').length,
+  }
 
-  const addLembrete = () => {
-    if (!novoLembrete.trim()) return
-    setLembretes([...lembretes, { id: Date.now(), texto: novoLembrete, clienteNome: lembCliente === 'Sem cliente' ? null : lembCliente, quando: lembQuando, concluido: false }])
+  const enviarParaCalendario = async (token, lembrete) => {
+    setCalendarStatus('loading')
+    try {
+      await criarEventoCalendario(token, {
+        titulo: lembrete.texto,
+        data: lembrete.quando,
+        clienteNome: lembrete.clienteNome,
+      })
+      setCalendarStatus('success')
+    } catch {
+      setCalendarStatus('error')
+    } finally {
+      setTimeout(() => setCalendarStatus(null), 4000)
+    }
+  }
+
+  const googleLogin = useGoogleLogin({
+    scope: 'https://www.googleapis.com/auth/calendar.events',
+    onSuccess: async ({ access_token }) => {
+      setGoogleToken(access_token)
+      if (pendingRef.current) {
+        await enviarParaCalendario(access_token, pendingRef.current)
+        pendingRef.current = null
+      }
+    },
+    onError: () => {
+      setCalendarStatus('error')
+      setTimeout(() => setCalendarStatus(null), 4000)
+    },
+  })
+
+  const addLembrete = async () => {
+    if (!novoLembrete.trim() || !lembQuando) return
+    const lembrete = {
+      id: Date.now(),
+      texto: novoLembrete,
+      clienteNome: lembCliente === 'Sem cliente' ? null : lembCliente,
+      quando: lembQuando,
+      concluido: false,
+    }
+    setLembretes((prev) => [...prev, lembrete])
     setNovoLembrete('')
+    setLembQuando(hojeLocalISO())
+
+    if (googleToken) {
+      await enviarParaCalendario(googleToken, lembrete)
+    } else {
+      pendingRef.current = lembrete
+      googleLogin()
+    }
   }
 
   const removeLembrete = (id) => setLembretes(lembretes.filter((l) => l.id !== id))
@@ -50,6 +118,25 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-stone-100">
       <Navbar />
+
+      {/* Toast de status Google Calendar */}
+      {calendarStatus && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 transition-all ${
+          calendarStatus === 'loading' ? 'bg-zinc-800 text-white' :
+          calendarStatus === 'success' ? 'bg-green-500 text-white' :
+          'bg-red-500 text-white'
+        }`}>
+          {calendarStatus === 'loading' && (
+            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+          )}
+          {calendarStatus === 'loading' && 'Adicionando ao Google Agenda...'}
+          {calendarStatus === 'success' && '✓ Evento adicionado ao Google Agenda!'}
+          {calendarStatus === 'error' && '✕ Erro ao adicionar ao Google Agenda'}
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-6 py-6">
         <p className="text-zinc-500 text-sm mb-0.5">{todayCap}</p>
@@ -128,6 +215,7 @@ export default function Dashboard() {
                 <input
                   value={novoLembrete}
                   onChange={(e) => setNovoLembrete(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addLembrete()}
                   placeholder="Ex.: ligar para o cliente sobre o aporte"
                   className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-brand"
                 />
@@ -149,25 +237,34 @@ export default function Dashboard() {
                     </select>
                   </div>
                   <div>
-                    <p className="text-xs text-zinc-500 mb-1">Quando</p>
-                    <select
+                    <p className="text-xs text-zinc-500 mb-1">Data</p>
+                    <input
+                      type="date"
                       value={lembQuando}
+                      min={hoje}
                       onChange={(e) => setLembQuando(e.target.value)}
-                      className="w-full border border-zinc-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none"
-                    >
-                      <option>Hoje</option>
-                      <option>Amanhã</option>
-                      <option>Esta semana</option>
-                      <option>Próxima semana</option>
-                    </select>
+                      className="w-full border border-zinc-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
                   </div>
                 </div>
                 <button
                   onClick={addLembrete}
-                  className="w-full bg-brand hover:brightness-95 text-zinc-900 font-medium text-sm py-2 rounded-lg"
+                  disabled={calendarStatus === 'loading'}
+                  className="w-full bg-brand hover:brightness-95 text-zinc-900 font-medium text-sm py-2 rounded-lg flex items-center justify-center gap-2 disabled:opacity-60"
                 >
-                  Adicionar lembrete
+                  <GoogleCalendarIcon />
+                  Adicionar e salvar no Google Agenda
                 </button>
+                {!googleToken && (
+                  <p className="text-xs text-zinc-400 text-center mt-1.5">
+                    Uma janela do Google vai abrir para autorizar.
+                  </p>
+                )}
+                {googleToken && (
+                  <p className="text-xs text-green-600 text-center mt-1.5">
+                    ✓ Conectado ao Google Agenda
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-2 mt-2">
@@ -177,10 +274,15 @@ export default function Dashboard() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-zinc-800">{l.texto}</p>
                       <p className="text-xs text-zinc-400">
-                        {l.clienteNome ? l.clienteNome + ' · ' : ''}{l.quando}
+                        {l.clienteNome ? l.clienteNome + ' · ' : ''}{formatarData(l.quando)}
                       </p>
                     </div>
-                    <button onClick={() => removeLembrete(l.id)} className="text-xs text-zinc-400 hover:text-red-500 ml-1 flex-shrink-0">Excluir</button>
+                    <button
+                      onClick={() => removeLembrete(l.id)}
+                      className="text-xs text-zinc-400 hover:text-red-500 ml-1 flex-shrink-0"
+                    >
+                      Excluir
+                    </button>
                   </div>
                 ))}
               </div>
@@ -203,6 +305,15 @@ export default function Dashboard() {
         </p>
       </div>
     </div>
+  )
+}
+
+function GoogleCalendarIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="M16 2v4M8 2v4M3 9h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
   )
 }
 
@@ -253,9 +364,7 @@ function ActionCard({ alerta, onVerCliente, onConcluir }) {
         <div className="flex-1">
           <p className="font-semibold text-zinc-900 mb-1">{alerta.titulo}</p>
           <p className="text-sm text-zinc-600 mb-1">{alerta.descricao}</p>
-          <p className="text-sm text-amber-600 font-medium">
-            Ação sugerida: {alerta.acaoSugerida}
-          </p>
+          <p className="text-sm text-amber-600 font-medium">Ação sugerida: {alerta.acaoSugerida}</p>
         </div>
         <div className="text-right flex-shrink-0">
           {alerta.valor != null && (
@@ -298,7 +407,6 @@ function ActionCard({ alerta, onVerCliente, onConcluir }) {
 }
 
 function NewsCard({ noticia, navigate }) {
-  const [expanded, setExpanded] = useState(false)
   const visible = noticia.clientesAfetados.slice(0, 3)
   const extra = noticia.totalAfetados - visible.length
 
