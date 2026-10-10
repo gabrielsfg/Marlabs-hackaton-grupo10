@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGoogleLogin } from '@react-oauth/google'
 import Navbar from '../components/Navbar'
 import { alertas, lembretes as lembretesIniciais, noticias, formatBRL } from '../data/mockData'
 import { criarEventoCalendario, hojeLocalISO } from '../utils/googleCalendar'
+import { api } from '../lib/api/client'
 
 const PRIORIDADE_STYLE = {
   Alta: 'bg-red-100 text-red-700',
@@ -31,6 +32,8 @@ export default function Dashboard() {
   const [lembretes, setLembretes] = useState(lembretesIniciais)
   const [novoLembrete, setNovoLembrete] = useState('')
   const [lembCliente, setLembCliente] = useState('Sem cliente')
+  const [newsDigest, setNewsDigest] = useState('')
+  const [newsDigestError, setNewsDigestError] = useState(null)
   // Data de hoje no fuso local, calculada ao abrir a tela
   const [hoje] = useState(hojeLocalISO)
   const [lembQuando, setLembQuando] = useState(hoje)
@@ -42,6 +45,13 @@ export default function Dashboard() {
 
   const today = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())
   const todayCap = today.charAt(0).toUpperCase() + today.slice(1)
+
+  useEffect(() => {
+    api.get('/news/digest')
+      .then((response) => response.data)
+      .then(setNewsDigest)
+      .catch(() => setNewsDigestError('Não foi possível carregar o resumo.'))
+  }, [])
 
   const alertasAtivos = alertas.filter((a) => !concluidos.includes(a.id))
   const filtrados = alertasAtivos.filter((a) => {
@@ -290,6 +300,17 @@ export default function Dashboard() {
 
             {/* Notícias */}
             <div>
+              <h2 className="text-base font-semibold text-zinc-900 mb-3">Resumo de investimentos</h2>
+              <div className="bg-white rounded-xl border border-zinc-100 p-4 mb-6">
+                {newsDigestError && <p className="text-sm text-red-600">{newsDigestError}</p>}
+                {!newsDigestError && !newsDigest && <p className="text-sm text-zinc-400">Carregando resumo...</p>}
+                {newsDigest && (
+                  <pre className="whitespace-pre-wrap font-sans text-sm text-zinc-600 leading-relaxed">
+                    {newsDigest}
+                  </pre>
+                )}
+              </div>
+
               <h2 className="text-base font-semibold text-zinc-900 mb-3">Notícias e clientes afetados</h2>
               <div className="flex flex-col gap-3">
                 {noticias.map((n) => (

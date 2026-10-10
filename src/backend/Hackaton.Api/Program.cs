@@ -65,6 +65,25 @@ api.MapGet("/health/db", async (ApplicationDbContext db, CancellationToken ct) =
             : Results.Problem("Nao foi possivel conectar ao banco", statusCode: StatusCodes.Status503ServiceUnavailable))
     .WithName("HealthDb");
 
+api.MapGet("/news/digest", async (IHostEnvironment environment, CancellationToken ct) =>
+{
+    var path = Path.GetFullPath(Path.Combine(
+        environment.ContentRootPath,
+        "..", "..", "..",
+        "script_noticias",
+        "news_module",
+        "data",
+        "demo",
+        "2026-10-10",
+        "digest.txt"));
+
+    if (!File.Exists(path))
+        return Results.NotFound(new { message = "Digest nao encontrado" });
+
+    var content = await File.ReadAllTextAsync(path, ct);
+    return Results.Text(content, "text/plain; charset=utf-8");
+}).WithName("NewsDigest");
+
 app.UseAuthentication();
 app.UseAuthorization();
 
