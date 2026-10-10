@@ -1,0 +1,27 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D2C05B58-777C-46E4-B89B-22DFE11B767D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hackaton.Api", "src\Hackaton.Api\Hackaton.Api.csproj", "{480516A5-F42F-4E74-BECF-39C33C45C6A3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{480516A5-F42F-4E74-BECF-39C33C45C6A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{480516A5-F42F-4E74-BECF-39C33C45C6A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{480516A5-F42F-4E74-BECF-39C33C45C6A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{480516A5-F42F-4E74-BECF-39C33C45C6A3}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{480516A5-F42F-4E74-BECF-39C33C45C6A3} = {D2C05B58-777C-46E4-B89B-22DFE11B767D}
+	EndGlobalSection
+EndGlobal
