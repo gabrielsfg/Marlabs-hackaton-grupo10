@@ -19,12 +19,19 @@ namespace Hackaton.Data.Mappings
                 .HasForeignKey(c => c.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Excluir o cliente so desvincula a carteira; os investimentos continuam com o assessor
+            builder.HasOne<Client>()
+                .WithMany()
+                .HasForeignKey(c => c.ClientId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             builder.HasMany(c => c.Investments)
                 .WithOne(i => i.BankConnection)
                 .HasForeignKey(i => i.BankConnectionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasIndex(c => new { c.UserId, c.PluggyItemId }).IsUnique();
+            builder.HasIndex(c => c.ClientId);
         }
     }
 }

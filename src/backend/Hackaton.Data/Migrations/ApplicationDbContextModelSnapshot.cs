@@ -28,6 +28,9 @@ namespace Hackaton.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ClientId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ConnectorName")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -58,6 +61,8 @@ namespace Hackaton.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
 
                     b.HasIndex("UserId", "PluggyItemId")
                         .IsUnique();
@@ -269,6 +274,11 @@ namespace Hackaton.Data.Migrations
 
             modelBuilder.Entity("Hackaton.Domain.Entities.BankConnection", b =>
                 {
+                    b.HasOne("Hackaton.Domain.Entities.Client", null)
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Hackaton.Domain.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")

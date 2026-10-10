@@ -83,8 +83,11 @@ consentimento ao cliente pelo Pluggy Connect, que e do plano pago).
    | `GET /api/bankconnections` | Lista as conexoes do usuario |
    | `POST /api/bankconnections/{id}/sync` | Puxa os investimentos da Pluggy e grava/atualiza no banco |
    | `GET /api/bankinvestments` | Carteira salva (acoes, ETFs, renda fixa...) do ultimo sync |
+   | `PUT /api/bankconnections/{id}/client` `{ "clientId": "..." }` | Vincula a carteira a um cliente do assessor (`null` desvincula) |
+   | `GET /api/clients/{id}/investments` | Posicoes das carteiras vinculadas ao cliente (usado no perfil do cliente) |
 
-   A carteira salva espelha a atual: posicoes vendidas/resgatadas (que a Pluggy nao retorna mais) sao removidas.
+   Com carteira vinculada, o `financialAssets` do cliente passa a ser a soma das posicoes e o perfil mostra os
+   investimentos reais nos graficos. A carteira salva espelha a atual: posicoes vendidas/resgatadas (que a Pluggy nao retorna mais) sao removidas.
    A Pluggy so atualiza os dados 1x a cada 24h.
 
 ## Rodando em desenvolvimento
@@ -133,6 +136,16 @@ npm run dev
 ```powershell
 dotnet publish src/backend/Hackaton.Api -c Release -o publish
 ```
+
+## Frontend: conta de demonstracao
+
+A tela de login ja abre preenchida com a conta de demonstracao `rafael.mendes@demo.com` / `demo1234`. Ela entra sem
+chamar a API e todas as telas usam o `src/frontend/src/data/mockData.js` (aparece o selo **Demonstracao** na barra).
+Qualquer outra conta faz o login real e as telas usam os dados da API (clientes, carteiras, investimentos).
+
+- A troca fica em `src/frontend/src/lib/session.js` (tipo de sessao) e `features/clients/api.js` (demo ou API).
+- Na demo, criar/editar/excluir clientes vale so ate recarregar a pagina.
+- Alertas, lembretes e clientes afetados por noticias do Dashboard ainda nao tem API: aparecem so na demo.
 
 ## Frontend: IA e Google Agenda
 

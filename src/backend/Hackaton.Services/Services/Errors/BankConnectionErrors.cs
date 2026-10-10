@@ -7,6 +7,7 @@ namespace Hackaton.Services.Services.Errors
     public static class BankConnectionErrors
     {
         public static readonly Error NotFound = Error.NotFound("BankConnection.NotFound", "Conexao bancaria nao encontrada");
+        public static readonly Error ClientNotFound = Error.NotFound("Client.NotFound", "Cliente nao encontrado");
         public static readonly Error AlreadyConnected =
             Error.Conflict("BankConnection.AlreadyConnected", "Este item da Pluggy ja esta conectado");
         public static readonly Error ItemNotFound = Error.NotFound("Pluggy.ItemNotFound",

@@ -35,6 +35,14 @@ namespace Hackaton.Api.Controllers
             return HandleResult(result);
         }
 
+        // Vincula a carteira a um cliente do assessor ({ "clientId": null } desvincula)
+        [HttpPut("{id:guid}/client")]
+        public async Task<IActionResult> LinkClient(Guid id, LinkBankConnectionClientRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _connectionService.LinkClientAsync(CurrentUserId, id, request, cancellationToken);
+            return HandleResult(result);
+        }
+
         // Puxa contas e transacoes da Pluggy e grava no banco (cria as novas, atualiza as existentes)
         [HttpPost("{id:guid}/sync")]
         public async Task<IActionResult> Sync(Guid id, CancellationToken cancellationToken)

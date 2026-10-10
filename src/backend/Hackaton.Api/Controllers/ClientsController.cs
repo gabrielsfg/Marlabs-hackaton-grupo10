@@ -8,15 +8,18 @@ namespace Hackaton.Api.Controllers
     public class ClientsController : ApiControllerBase
     {
         private readonly IClientService _clientService;
+        private readonly IBankInvestmentService _investmentService;
         private readonly IValidator<CreateClientRequest> _createValidator;
         private readonly IValidator<UpdateClientRequest> _updateValidator;
 
         public ClientsController(
             IClientService clientService,
+            IBankInvestmentService investmentService,
             IValidator<CreateClientRequest> createValidator,
             IValidator<UpdateClientRequest> updateValidator)
         {
             _clientService = clientService;
+            _investmentService = investmentService;
             _createValidator = createValidator;
             _updateValidator = updateValidator;
         }
@@ -36,6 +39,14 @@ namespace Hackaton.Api.Controllers
         public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         {
             var result = await _clientService.GetByIdAsync(CurrentUserId, id, cancellationToken);
+            return HandleResult(result);
+        }
+
+        // Posicoes das carteiras (Pluggy) vinculadas ao cliente via PUT /api/bankconnections/{id}/client
+        [HttpGet("{id:guid}/investments")]
+        public async Task<IActionResult> GetInvestments(Guid id, CancellationToken cancellationToken)
+        {
+            var result = await _investmentService.GetByClientAsync(CurrentUserId, id, cancellationToken);
             return HandleResult(result);
         }
 

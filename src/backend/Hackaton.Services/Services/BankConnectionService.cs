@@ -16,6 +16,7 @@ namespace Hackaton.Services.Services
     public class BankConnectionService : IBankConnectionService
     {
         private readonly IBankConnectionRepository _connectionRepository;
+        private readonly IClientRepository _clientRepository;
         private readonly IBankInvestmentRepository _investmentRepository;
         private readonly IPluggyGateway _pluggy;
         private readonly TimeProvider _timeProvider;
@@ -23,12 +24,14 @@ namespace Hackaton.Services.Services
 
         public BankConnectionService(
             IBankConnectionRepository connectionRepository,
+            IClientRepository clientRepository,
             IBankInvestmentRepository investmentRepository,
             IPluggyGateway pluggy,
             TimeProvider timeProvider,
             ILogger<BankConnectionService> logger)
         {
             _connectionRepository = connectionRepository;
+            _clientRepository = clientRepository;
             _investmentRepository = investmentRepository;
             _pluggy = pluggy;
             _timeProvider = timeProvider;
@@ -71,6 +74,24 @@ namespace Hackaton.Services.Services
             };
 
             await _connectionRepository.AddAsync(connection, cancellationToken);
+            await _connectionRepository.SaveChangesAsync(cancellationToken);
+
+            return connection.Adapt<BankConnectionResponse>();
+        }
+
+        public async Task<Result<BankConnectionResponse>> LinkClientAsync(
+            Guid userId, Guid connectionId, LinkBankConnectionClientRequest request, CancellationToken cancellationToken)
+        {
+            var connection = await _connectionRepository.GetForUpdateAsync(connectionId, userId, cancellationToken);
+            if (connection is null)
+                return BankConnectionErrors.NotFound;
+
+            // So vincula a clientes do proprio assessor
+            if (request.ClientId is { } clientId
+                && await _clientRepository.GetByIdAsync(clientId, userId, cancellationToken) is null)
+                return BankConnectionErrors.ClientNotFound;
+
+            connection.ClientId = request.ClientId;
             await _connectionRepository.SaveChangesAsync(cancellationToken);
 
             return connection.Adapt<BankConnectionResponse>();
