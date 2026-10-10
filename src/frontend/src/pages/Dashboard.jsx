@@ -1,9 +1,26 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGoogleLogin } from '@react-oauth/google'
 import Navbar from '../components/Navbar'
-import { alertas, lembretes as lembretesIniciais, noticias, formatBRL } from '../data/mockData'
-import { criarEventoCalendario, hojeLocalISO } from '../utils/googleCalendar'
+import { alertas as alertasMock, lembretes as lembretesIniciais, noticias, formatBRL } from '../data/mockData'
+import { criarEventoCalendario } from '../utils/googleCalendar'
+
+const ADVISOR_ID = import.meta.env.VITE_ADVISOR_ID || null
+
+function mapApiToAlerta(a, idx) {
+  return {
+    id: `api-${idx}`,
+    clienteId: a.clienteId,
+    titulo: a.clienteNome,
+    tipo: a.tipo,
+    prioridade: a.prioridade,
+    tag: a.label,
+    descricao: a.descricao,
+    acaoSugerida: a.acaoSugerida,
+    valor: a.valorDestaque,
+    labelValor: a.label,
+  }
+}
 
 const PRIORIDADE_STYLE = {
   Alta: 'bg-red-100 text-red-700',
@@ -17,6 +34,8 @@ const PRIORIDADE_BORDER = {
   Baixa: 'border-sky-200',
 }
 
+const todayISO = new Date().toISOString().split('T')[0]
+
 function formatarData(dateStr) {
   if (!dateStr) return '—'
   const [y, m, d] = dateStr.split('-')
@@ -28,12 +47,19 @@ export default function Dashboard() {
   const [filtroPrioridade, setFiltroPrioridade] = useState('Todas')
   const [filtroTipo, setFiltroTipo] = useState('Todos')
   const [concluidos, setConcluidos] = useState([])
+  const [alertas, setAlertas] = useState(alertasMock)
   const [lembretes, setLembretes] = useState(lembretesIniciais)
+
+  useEffect(() => {
+    if (!ADVISOR_ID) return
+    fetch(`/api/acoes-do-dia/${ADVISOR_ID}`)
+      .then((r) => { if (!r.ok) throw new Error(); return r.json() })
+      .then((data) => setAlertas(data.map(mapApiToAlerta)))
+      .catch(() => { /* mantém mock */ })
+  }, [])
   const [novoLembrete, setNovoLembrete] = useState('')
   const [lembCliente, setLembCliente] = useState('Sem cliente')
-  // Data de hoje no fuso local, calculada ao abrir a tela
-  const [hoje] = useState(hojeLocalISO)
-  const [lembQuando, setLembQuando] = useState(hoje)
+  const [lembQuando, setLembQuando] = useState(todayISO)
 
   // Google Calendar
   const [googleToken, setGoogleToken] = useState(null)
@@ -93,7 +119,7 @@ export default function Dashboard() {
   })
 
   const addLembrete = async () => {
-    if (!novoLembrete.trim() || !lembQuando) return
+    if (!novoLembrete.trim()) return
     const lembrete = {
       id: Date.now(),
       texto: novoLembrete,
@@ -103,7 +129,7 @@ export default function Dashboard() {
     }
     setLembretes((prev) => [...prev, lembrete])
     setNovoLembrete('')
-    setLembQuando(hojeLocalISO())
+    setLembQuando(todayISO)
 
     if (googleToken) {
       await enviarParaCalendario(googleToken, lembrete)
@@ -241,7 +267,7 @@ export default function Dashboard() {
                     <input
                       type="date"
                       value={lembQuando}
-                      min={hoje}
+                      min={todayISO}
                       onChange={(e) => setLembQuando(e.target.value)}
                       className="w-full border border-zinc-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                     />

@@ -29,6 +29,46 @@ Content-Type: application/json
 
 ###
 
+GET {{Hackaton.Api_HostAddress}}/api/reminders
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+###
+
+GET {{Hackaton.Api_HostAddress}}/api/reminders/00000000-0000-7000-8000-000000000001
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+###
+
+POST {{Hackaton.Api_HostAddress}}/api/reminders
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Ligar para o cliente sobre o aporte",
+  "dueDate": "2026-10-15",
+  "clientId": null
+}
+
+###
+
+PUT {{Hackaton.Api_HostAddress}}/api/reminders/00000000-0000-7000-8000-000000000001
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Ligar para o cliente sobre o aporte",
+  "dueDate": "2026-10-15",
+  "clientId": null,
+  "isCompleted": true
+}
+
+###
+
+DELETE {{Hackaton.Api_HostAddress}}/api/reminders/00000000-0000-7000-8000-000000000001
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+###
+
 GET {{Hackaton.Api_HostAddress}}/api/users/me
 Authorization: Bearer {{login.response.body.$.accessToken}}
 

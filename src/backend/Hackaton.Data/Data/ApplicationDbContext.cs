@@ -14,6 +14,7 @@ namespace Hackaton.Data.Data
         public DbSet<Client> Clients => Set<Client>();
         public DbSet<BankConnection> BankConnections => Set<BankConnection>();
         public DbSet<BankInvestment> BankInvestments => Set<BankInvestment>();
+        public DbSet<Reminder> Reminders => Set<Reminder>();
 
         public override int SaveChanges()
         {
