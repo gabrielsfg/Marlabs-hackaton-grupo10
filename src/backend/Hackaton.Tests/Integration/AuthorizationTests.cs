@@ -21,6 +21,20 @@ namespace Hackaton.Tests.Integration
             Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         }
 
+        [Theory]
+        [InlineData("GET", "/api/bankconnections")]
+        [InlineData("POST", "/api/bankconnections")]
+        [InlineData("POST", "/api/bankconnections/0199d5a0-0000-7000-8000-000000000000/sync")]
+        [InlineData("GET", "/api/bankinvestments")]
+        public async Task BankEndpoints_WithoutToken_ReturnUnauthorized(string method, string url)
+        {
+            using var request = new HttpRequestMessage(new HttpMethod(method), url);
+
+            var response = await _client.SendAsync(request, TestContext.Current.CancellationToken);
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
         [Fact]
         public async Task GetMe_WithInvalidToken_ReturnsUnauthorized()
         {

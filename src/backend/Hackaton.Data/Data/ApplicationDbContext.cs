@@ -11,6 +11,8 @@ namespace Hackaton.Data.Data
         }
 
         public DbSet<User> Users => Set<User>();
+        public DbSet<BankConnection> BankConnections => Set<BankConnection>();
+        public DbSet<BankInvestment> BankInvestments => Set<BankInvestment>();
 
         public override int SaveChanges()
         {

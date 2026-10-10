@@ -19,6 +19,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddApplicationServices();
 builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddPluggySettings(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 
