@@ -21,6 +21,12 @@ namespace Hackaton.Data.Repositories
                 .OrderByDescending(i => i.Balance)
                 .ToListAsync(cancellationToken);
 
+        public Task<List<BankInvestment>> GetLinkedToClientsAsync(Guid userId, CancellationToken cancellationToken) =>
+            _context.BankInvestments.AsNoTracking()
+                .Include(i => i.BankConnection)
+                .Where(i => i.BankConnection!.UserId == userId && i.BankConnection.ClientId != null)
+                .ToListAsync(cancellationToken);
+
         public Task<List<BankInvestment>> GetByClientIdAsync(Guid userId, Guid clientId, CancellationToken cancellationToken) =>
             _context.BankInvestments.AsNoTracking()
                 .Include(i => i.BankConnection)

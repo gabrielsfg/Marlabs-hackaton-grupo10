@@ -224,6 +224,44 @@ namespace Hackaton.Data.Migrations
                     b.ToTable("Clients", (string)null);
                 });
 
+            modelBuilder.Entity("Hackaton.Domain.Entities.Reminder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdvisorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ClientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("AdvisorId", "DueDate");
+
+                    b.ToTable("Reminders", (string)null);
+                });
+
             modelBuilder.Entity("Hackaton.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -304,6 +342,22 @@ namespace Hackaton.Data.Migrations
                         .HasForeignKey("AdvisorId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Hackaton.Domain.Entities.Reminder", b =>
+                {
+                    b.HasOne("Hackaton.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("AdvisorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hackaton.Domain.Entities.Client", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Client");
                 });
 
             modelBuilder.Entity("Hackaton.Domain.Entities.BankConnection", b =>

@@ -27,6 +27,7 @@ namespace Hackaton.Services.Extensions
             services.AddScoped<IClientRepository, ClientRepository>();
             services.AddScoped<IBankConnectionRepository, BankConnectionRepository>();
             services.AddScoped<IBankInvestmentRepository, BankInvestmentRepository>();
+            services.AddScoped<IReminderRepository, ReminderRepository>();
 
             // Pluggy: o PluggySettings e registrado pela Api (lido do user-secrets)
             services.TryAddSingleton(TimeProvider.System);
@@ -40,6 +41,8 @@ namespace Hackaton.Services.Extensions
             services.AddScoped<IClientService, ClientService>();
             services.AddScoped<IBankConnectionService, BankConnectionService>();
             services.AddScoped<IBankInvestmentService, BankInvestmentService>();
+            services.AddScoped<IReminderService, ReminderService>();
+            services.AddScoped<IDailyActionService, DailyActionService>();
 
             return services;
         }
